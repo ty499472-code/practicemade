@@ -235,7 +235,7 @@ load();
 // ネット: Z=6.7m
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const CW=6.1,CL=13.4,NET_Z=6.7,NET_HC=1.524,NET_HP=1.55;
-const N_NODES=10; // シャトル軌道の節点数
+// シャトル: 3点制御（始点p1・最高点p2・終点p3）
 
 // Canvas
 const CT=document.getElementById('cTop'),XT=CT.getContext('2d');
@@ -252,10 +252,11 @@ let shuttleAnim={active:false,t:0,speed:0.008,shuttleIdx:-1,rafId:null};
 // phase: 'top' = 真上で始点→終点を引く中
 //        'side' = サイドで節点を調整中
 // pendingShuttle: 現在編集中のシャトル
-let shuttlePhase=null; // null | 'drawing_top' | 'nodes_side'
-let pendingShuttleIdx=-1; // 編集中のシャトルのindex
-let dragNodeIdx=-1; // サイドでドラッグ中の節点index
-let topDragStart=null; // 真上での始点
+// シャトル3点制御の状態
+let shuttlePhase=null; // null | 'set_p1' | 'set_p2' | 'set_p3' | 'edit'
+let pendingShuttleIdx=-1;
+let dragPointKey=null; // ドラッグ中の点: 'p1'|'p2'|'p3'
+let topDragStart=null;
 
 const PDEFS=[
   {id:'A',label:'A',color:'#1a7a4a',name:'A面（緑）'},
@@ -288,16 +289,12 @@ const D=()=>window._steps[window._cs];
 // }
 
 // 始点→終点から初期節点を生成（放物線弧）
-function makeShuttleNodes(x0,z0,x1,z1,peakY){
-  const nodes=[];
-  for(let i=0;i<N_NODES;i++){
-    const t=(i+1)/(N_NODES+1); // 0<t<1 (始点・終点は含まない)
-    const x=x0+t*(x1-x0);
-    const z=z0+t*(z1-z0);
-    const y=peakY*4*t*(1-t); // 放物線
-    nodes.push({x,y,z});
-  }
-  return nodes;
+// 3点シャトルのp2（最高点）をデフォルト生成
+function makeDefaultP2(p1,p3){
+  const mx=(p1.x+p3.x)/2, mz=(p1.z+p3.z)/2;
+  const dist=Math.hypot(p3.x-p1.x,p3.z-p1.z);
+  const peakY=Math.min(5,Math.max(1.2,dist*0.45));
+  return{x:mx,y:peakY,z:mz};
 }
 
 // ━━━━ 2D座標変換 ━━━━
@@ -321,16 +318,7 @@ function sideInv(px,py,W,H){const pz=52,pb=32,pt=14;return{z:(px-pz)*(CL/(W-pz-1
 // ━━━━ ヒットテスト ━━━━
 function hitPl(px,py,cv,isTop){const W=cv.width,H=cv.height;return D().players.findIndex(p=>{const m=isTop?topMap(p.x,p.z,W,H):sideMap(p.z,p.y,W,H);return Math.hypot(m.px-px,m.py-py)<15;});}
 function hitCm(px,py,cv,isTop){const W=cv.width,H=cv.height;return D().comments.findIndex(c=>{const m=isTop?topMap(c.x,c.z,W,H):sideMap(c.z,c.y,W,H);return Math.abs(m.px-px)<52&&Math.abs(m.py-py)<13;});}
-function hitNode(px,py,cv,shuttleIdx){
-  // サイドビューで節点をヒット
-  const W=cv.width,H=cv.height;
-  const s=D().shuttles[shuttleIdx];if(!s||!s.nodes)return -1;
-  for(let i=0;i<s.nodes.length;i++){
-    const n=s.nodes[i];const m=sideMap(n.z,n.y,W,H);
-    if(Math.hypot(m.px-px,m.py-py)<10)return i;
-  }
-  return -1;
-}
+// 3点制御のヒットはCS.onmousedown内で直接処理
 
 // ━━━━ マウスイベント ━━━━
 function gp(e,cv){const r=cv.getBoundingClientRect();return{px:(e.clientX-r.left)*(cv.width/r.width),py:(e.clientY-r.top)*(cv.height/r.height)};}
@@ -342,10 +330,30 @@ CT.onmousedown=e=>{
   isDown=true;activeC=CT;
 
   if(tool==='shuttle'){
-    // フェーズ1: 真上で始点を記録
     const r=topInv(px,py,W,H);
-    topDragStart={...clamp3({...r,y:0})};
-    shuttlePhase='drawing_top';
+    const pt=clamp3({...r,y:0});
+    if(!shuttlePhase||shuttlePhase==='set_p1'){
+      // p1（始点）を配置
+      topDragStart=pt;
+      shuttlePhase='set_p1';
+      updateShuttleHints();
+    } else if(shuttlePhase==='set_p2'){
+      // p2（最高点）を配置 - XZ位置のみ、Yは後でサイドで調整
+      const s=d.shuttles[pendingShuttleIdx];if(!s)return;
+      const defaultY=makeDefaultP2(s.p1,s.p3).y;
+      s.p2={x:pt.x,y:defaultY,z:pt.z};
+      shuttlePhase='set_p3';
+      updateShuttleHints();drawAll();update3D();
+    } else if(shuttlePhase==='set_p3'){
+      // p3（終点）を配置 → 完成
+      const s=d.shuttles[pendingShuttleIdx];if(!s)return;
+      s.p3={x:pt.x,y:0,z:pt.z};
+      // p2のXZが未設定なら中間点に
+      if(!s.p2){s.p2=makeDefaultP2(s.p1,s.p3);}
+      shuttlePhase='edit';
+      selEl={type:'shuttle',idx:pendingShuttleIdx};
+      showProp();updateShuttleHints();drawAll();update3D();
+    }
     return;
   }
   if(tool==='select'){
@@ -354,15 +362,24 @@ CT.onmousedown=e=>{
     if(pi>=0){selEl={type:'player',idx:pi};showProp();dragging=true;drawAll();update3D();return;}
     const ci=hitCm(px,py,CT,true);
     if(ci>=0){selEl={type:'comment',idx:ci};showProp();dragging=true;drawAll();update3D();return;}
-    // シャトル軌道のヒット（真上）
+    // シャトル軌道のヒット（真上）- 3点ハンドルのヒット優先
     for(let i=0;i<d.shuttles.length;i++){
-      const s=d.shuttles[i];if(!s.nodes)continue;
-      const all=[{x:s.x0,z:s.z0},...s.nodes,{x:s.x1,z:s.z1}];
-      if(all.some(p=>{const m=topMap(p.x,p.z,W,H);return Math.hypot(m.px-px,m.py-py)<12;})){
-        selEl={type:'shuttle',idx:i};showProp();drawAll();
-        // サイド節点編集モードへ
-        pendingShuttleIdx=i;shuttlePhase='nodes_side';
-        updateShuttleHints();return;
+      const s=d.shuttles[i];if(!s.p1||!s.p3)continue;
+      const pts=[s.p1,s.p2,s.p3].filter(Boolean);
+      // ハンドルのヒット（優先）
+      const keys=['p1','p2','p3'];
+      for(let ki=0;ki<keys.length;ki++){
+        const k=keys[ki];if(!s[k])continue;
+        const m=topMap(s[k].x,s[k].z,W,H);
+        if(Math.hypot(m.px-px,m.py-py)<12){
+          selEl={type:'shuttle',idx:i};pendingShuttleIdx=i;dragPointKey=k;
+          shuttlePhase='edit';dragging=true;showProp();drawAll();updateShuttleHints();return;
+        }
+      }
+      // 軌道線のヒット
+      if(pts.some(p=>{const m=topMap(p.x,p.z,W,H);return Math.hypot(m.px-px,m.py-py)<16;})){
+        selEl={type:'shuttle',idx:i};pendingShuttleIdx=i;dragPointKey=null;
+        shuttlePhase='edit';showProp();drawAll();updateShuttleHints();return;
       }
     }
     selEl=null;showProp();drawAll();
@@ -382,10 +399,10 @@ CT.onmousedown=e=>{
     const pi=hitPl(px,py,CT,true);if(pi>=0){d.players.splice(pi,1);drawAll();update3D();return;}
     const ci=hitCm(px,py,CT,true);if(ci>=0){d.comments.splice(ci,1);drawAll();update3D();return;}
     for(let i=0;i<d.shuttles.length;i++){
-      const s=d.shuttles[i];if(!s.nodes)continue;
-      const all=[{x:s.x0,z:s.z0},...s.nodes,{x:s.x1,z:s.z1}];
-      if(all.some(p=>{const m=topMap(p.x,p.z,W,H);return Math.hypot(m.px-px,m.py-py)<14;})){
-        d.shuttles.splice(i,1);if(pendingShuttleIdx===i){pendingShuttleIdx=-1;shuttlePhase=null;}drawAll();update3D();return;
+      const s=d.shuttles[i];if(!s.p1)continue;
+      const pts=[s.p1,s.p2,s.p3].filter(Boolean);
+      if(pts.some(p=>{const m=topMap(p.x,p.z,W,H);return Math.hypot(m.px-px,m.py-py)<14;})){
+        d.shuttles.splice(i,1);if(pendingShuttleIdx===i){pendingShuttleIdx=-1;shuttlePhase=null;dragPointKey=null;}drawAll();update3D();return;
       }
     }
     for(let i=0;i<d.moves.length;i++){
@@ -397,29 +414,33 @@ CT.onmousedown=e=>{
 CT.onmousemove=e=>{
   if(!isDown||activeC!==CT)return;
   const {px,py}=gp(e,CT);const W=CT.width,H=CT.height;const d=D();
-  if(tool==='shuttle'&&shuttlePhase==='drawing_top'){
-    drawAll(); // ラバーバンド描画
-    const r=topInv(px,py,W,H);
-    const cur=clamp3({...r,y:0});
-    // 暫定線を描画
-    if(topDragStart){
-      const s=topMap(topDragStart.x,topDragStart.z,W,H);
-      const e2=topMap(cur.x,cur.z,W,H);
-      XT.strokeStyle=document.getElementById('sCol').value;XT.lineWidth=2;XT.setLineDash([5,4]);
-      XT.beginPath();XT.moveTo(s.px,s.py);XT.lineTo(e2.px,e2.py);XT.stroke();XT.setLineDash([]);
-      // 矢印
-      const a=Math.atan2(e2.py-s.py,e2.px-s.px);
-      XT.fillStyle=document.getElementById('sCol').value;XT.beginPath();
-      XT.moveTo(e2.px+Math.cos(a)*10,e2.py+Math.sin(a)*10);
-      XT.lineTo(e2.px+Math.cos(a-2.5)*6,e2.py+Math.sin(a-2.5)*6);
-      XT.lineTo(e2.px+Math.cos(a+2.5)*6,e2.py+Math.sin(a+2.5)*6);
-      XT.closePath();XT.fill();
+  if(tool==='shuttle'&&(shuttlePhase==='set_p2'||shuttlePhase==='set_p3')){
+    drawAll(); // ラバーバンド
+    const r=topInv(px,py,W,H);const cur=clamp3({...r,y:0});
+    const s=d.shuttles[pendingShuttleIdx];if(!s)return;
+    // 現在のカーソル位置へのプレビュー線
+    if(s.p1){
+      const pm=topMap(s.p1.x,s.p1.z,W,H),cm=topMap(cur.x,cur.z,W,H);
+      XT.strokeStyle=document.getElementById('sCol').value;XT.lineWidth=1.5;XT.setLineDash([4,4]);
+      XT.beginPath();XT.moveTo(pm.px,pm.py);XT.lineTo(cm.px,cm.py);XT.stroke();XT.setLineDash([]);
+    }
+    if(s.p2&&shuttlePhase==='set_p3'){
+      const p2m=topMap(s.p2.x,s.p2.z,W,H),cm=topMap(cur.x,cur.z,W,H);
+      XT.strokeStyle=document.getElementById('sCol').value;XT.lineWidth=1.5;XT.setLineDash([4,4]);
+      XT.beginPath();XT.moveTo(p2m.px,p2m.py);XT.lineTo(cm.px,cm.py);XT.stroke();XT.setLineDash([]);
     }
     return;
   }
   if(tool==='select'&&dragging&&selEl){
     if(selEl.type==='player'){const r=topInv(px,py,W,H);const p=d.players[selEl.idx];p.x=Math.max(0,Math.min(CW,r.x));p.z=Math.max(0,Math.min(CL,r.z));}
     else if(selEl.type==='comment'){const r=topInv(px,py,W,H);const c=d.comments[selEl.idx];c.x=r.x;c.z=r.z;}
+    else if(selEl.type==='shuttle'&&dragPointKey){
+      const s=d.shuttles[selEl.idx];if(s&&s[dragPointKey]){
+        const r=topInv(px,py,W,H);
+        s[dragPointKey].x=Math.max(0,Math.min(CW,r.x));
+        s[dragPointKey].z=Math.max(0,Math.min(CL,r.z));
+      }
+    }
     showProp();drawAll();update3D();return;
   }
   if(tool==='move'&&d.moves.length>0){
@@ -431,23 +452,14 @@ CT.onmousemove=e=>{
 CT.onmouseup=e=>{
   if(activeC!==CT){isDown=false;dragging=false;activeC=null;return;}
   const {px,py}=gp(e,CT);const W=CT.width,H=CT.height;const d=D();
-  if(tool==='shuttle'&&shuttlePhase==='drawing_top'&&topDragStart){
-    const r=topInv(px,py,W,H);const end=clamp3({...r,y:0});
-    const dist=Math.hypot(end.x-topDragStart.x,end.z-topDragStart.z);
-    if(dist>0.3){
-      // 放物線の高さを距離に応じて自動設定（長い軌道ほど高く）
-      const peakY=Math.min(5,Math.max(1,dist*0.5));
-      const nodes=makeShuttleNodes(topDragStart.x,topDragStart.z,end.x,end.z,peakY);
-      const s={color:document.getElementById('sCol').value,x0:topDragStart.x,z0:topDragStart.z,x1:end.x,z1:end.z,nodes};
-      d.shuttles.push(s);
-      pendingShuttleIdx=d.shuttles.length-1;
-      shuttlePhase='nodes_side'; // サイドで調整フェーズへ
-      selEl={type:'shuttle',idx:pendingShuttleIdx};
-      showProp();
-      updateShuttleHints();
-    } else {
-      shuttlePhase=null;topDragStart=null;
-    }
+  if(tool==='shuttle'&&shuttlePhase==='set_p1'&&topDragStart){
+    // p1確定 → シャトルオブジェクト作成、p2配置待ち
+    const s={color:document.getElementById('sCol').value,
+             p1:{...topDragStart},p2:null,p3:null};
+    d.shuttles.push(s);
+    pendingShuttleIdx=d.shuttles.length-1;
+    shuttlePhase='set_p2';
+    updateShuttleHints();drawAll();
   }
   isDown=false;dragging=false;activeC=null;
   drawAll();update3D();
@@ -458,19 +470,30 @@ CT.onmouseleave=()=>{if(activeC===CT&&tool==='shuttle'&&shuttlePhase==='drawing_
 CS.onmousedown=e=>{
   const {px,py}=gp(e,CS);const W=CS.width,H=CS.height;const d=D();
   isDown=true;activeC=CS;
-  if(tool==='shuttle'&&shuttlePhase==='nodes_side'&&pendingShuttleIdx>=0){
-    // 節点のヒットテスト
-    const ni=hitNode(px,py,CS,pendingShuttleIdx);
-    if(ni>=0){dragNodeIdx=ni;return;}
+  // サイドビュー: p1/p2/p3 のYをドラッグ
+  const keys3=['p1','p2','p3'];
+  if(tool==='shuttle'&&shuttlePhase==='edit'&&pendingShuttleIdx>=0){
+    const s=d.shuttles[pendingShuttleIdx];if(s){
+      for(const k of keys3){if(!s[k])continue;
+        const m=sideMap(s[k].z,s[k].y,W,H);
+        if(Math.hypot(m.px-px,m.py-py)<12){dragPointKey=k;return;}
+      }
+    }
     return;
   }
   if(tool==='select'){
     const pi=hitPl(px,py,CS,false);
     if(pi>=0){selEl={type:'player',idx:pi};showProp();dragging=true;drawAll();update3D();return;}
-    // シャトル軌道の節点選択
+    // シャトルハンドルのヒット
     for(let i=0;i<d.shuttles.length;i++){
-      const ni=hitNode(px,py,CS,i);
-      if(ni>=0){selEl={type:'shuttle',idx:i};pendingShuttleIdx=i;shuttlePhase='nodes_side';dragNodeIdx=ni;showProp();drawAll();return;}
+      const s=d.shuttles[i];if(!s.p1||!s.p3)continue;
+      for(const k of keys3){if(!s[k])continue;
+        const m=sideMap(s[k].z,s[k].y,W,H);
+        if(Math.hypot(m.px-px,m.py-py)<12){
+          selEl={type:'shuttle',idx:i};pendingShuttleIdx=i;dragPointKey=k;
+          shuttlePhase='edit';dragging=true;showProp();drawAll();return;
+        }
+      }
     }
     selEl=null;showProp();drawAll();
   }
@@ -479,12 +502,17 @@ CS.onmousedown=e=>{
 CS.onmousemove=e=>{
   if(!isDown||activeC!==CS)return;
   const {px,py}=gp(e,CS);const W=CS.width,H=CS.height;const d=D();
-  if((tool==='shuttle'||tool==='select')&&shuttlePhase==='nodes_side'&&pendingShuttleIdx>=0&&dragNodeIdx>=0){
+  if(dragPointKey&&pendingShuttleIdx>=0){
+    const s=d.shuttles[pendingShuttleIdx];if(!s||!s[dragPointKey])return;
     const r=sideInv(px,py,W,H);
-    const s=d.shuttles[pendingShuttleIdx];if(!s||!s.nodes)return;
-    // Y（高さ）のみ変更（Z位置は固定）
-    s.nodes[dragNodeIdx].y=Math.max(0,Math.min(9,r.y));
-    drawAll();update3D();return;
+    if(dragPointKey==='p1'||dragPointKey==='p3'){
+      // p1,p3: Y（高さ）のみ変更（サイドでZ位置固定）
+      s[dragPointKey].y=Math.max(0,Math.min(9,r.y));
+    } else {
+      // p2: Y（高さ）のみ変更（XZは真上で変更）
+      s[dragPointKey].y=Math.max(0,Math.min(9,r.y));
+    }
+    showProp();drawAll();update3D();return;
   }
   if(tool==='select'&&dragging&&selEl){
     if(selEl.type==='player'){const r=sideInv(px,py,W,H);const p=d.players[selEl.idx];p.z=Math.max(0,Math.min(CL,r.z));p.y=Math.max(0,Math.min(9,r.y));}
@@ -492,8 +520,8 @@ CS.onmousemove=e=>{
   }
 };
 
-CS.onmouseup=()=>{dragNodeIdx=-1;isDown=false;dragging=false;activeC=null;};
-CS.onmouseleave=()=>{dragNodeIdx=-1;if(activeC===CS){isDown=false;dragging=false;activeC=null;}};
+CS.onmouseup=()=>{dragPointKey=null;isDown=false;dragging=false;activeC=null;};
+CS.onmouseleave=()=>{dragPointKey=null;if(activeC===CS){isDown=false;dragging=false;activeC=null;}};
 
 // ドロップ
 CT.ondrop=e=>{e.preventDefault();if(!dragPl)return;const{px,py}=gp(e,CT);const r=topInv(px,py,CT.width,CT.height);D().players.push({...dragPl,...clamp3({...r,y:0})});dragPl=null;drawAll();update3D();};
@@ -513,7 +541,7 @@ function setTool(t,b){
   tool=t;document.querySelectorAll('.tb').forEach(x=>x.classList.remove('on'));if(b)b.classList.add('on');
   [CT,CS].forEach(c=>c.style.cursor=t==='erase'?'not-allowed':t==='select'?'default':'crosshair');
   document.getElementById('shuttleHelp').style.display=t==='shuttle'?'block':'none';
-  if(t!=='shuttle'){shuttlePhase=null;topDragStart=null;}
+  if(t!=='shuttle'&&t!=='select'){shuttlePhase=null;topDragStart=null;dragPointKey=null;}
   updateShuttleHints();
 }
 window.setTool=setTool;
@@ -522,13 +550,15 @@ function updateShuttleHints(){
   const topHint=document.getElementById('shuttleModeTop');
   const sideHint=document.getElementById('shuttleModeSide');
   const nodeHint=document.getElementById('nodeHint');
-  if(tool==='shuttle'){
-    if(shuttlePhase==='drawing_top'||!shuttlePhase){topHint.classList.add('show');sideHint.classList.remove('show');nodeHint.classList.remove('show');}
-    else if(shuttlePhase==='nodes_side'){topHint.classList.remove('show');sideHint.classList.add('show');nodeHint.classList.add('show');}
+  const topMsgs={'set_p1':'🏸① 始点をクリック','set_p2':'🏸② 最高点をクリック（XZ位置）','set_p3':'🏸③ 終点をクリック','edit':'🎯 ハンドル(●)をドラッグで移動'};
+  const sideMsgs={'set_p1':'待機中','set_p2':'サイドで●をドラッグ→Y調整','set_p3':'サイドで●をドラッグ→Y調整','edit':'●をドラッグ→Y（高さ）調整'};
+  if(tool==='shuttle'||shuttlePhase==='edit'){
+    const ph=shuttlePhase||'set_p1';
+    topHint.textContent=topMsgs[ph]||'';topHint.classList.add('show');
+    sideHint.textContent=sideMsgs[ph]||'';sideHint.classList.add('show');
+    nodeHint.classList.toggle('show',ph==='edit');
   } else {
-    topHint.classList.remove('show');sideHint.classList.remove('show');
-    if(shuttlePhase==='nodes_side')nodeHint.classList.add('show');
-    else nodeHint.classList.remove('show');
+    topHint.classList.remove('show');sideHint.classList.remove('show');nodeHint.classList.remove('show');
   }
 }
 
@@ -548,9 +578,16 @@ function showProp(){
       <div class="fld"><label>色</label><input type="color" value="${p.color}" style="height:20px;padding:1px" oninput="D().players[selEl.idx].color=this.value;drawAll();update3D()"></div>`;
   } else if(selEl.type==='shuttle'){
     const s=D().shuttles[selEl.idx];
-    el.innerHTML=`<div style="font-size:9px;color:#555;line-height:1.6"><b>シャトル軌道</b><br>始点: (${s.x0?.toFixed(1)},${s.z0?.toFixed(1)})<br>終点: (${s.x1?.toFixed(1)},${s.z1?.toFixed(1)})<br>節点数: ${s.nodes?.length||0}<br><small style="color:#888">サイドビューで各節点をドラッグして弧を調整</small></div>
-      <div class="fld" style="margin-top:4px"><label>色</label><input type="color" value="${s.color}" style="height:20px;padding:1px" oninput="D().shuttles[selEl.idx].color=this.value;drawAll();update3D()"></div>
-      <button onclick="resetShuttleArc(${selEl.idx})" style="margin-top:4px;width:100%;padding:3px;border-radius:4px;border:1px solid var(--border);background:var(--grl);font-size:10px;cursor:pointer">↩ 弧をリセット</button>`;
+    const p1=s.p1,p2=s.p2,p3=s.p3;
+    el.innerHTML=`<div style="font-size:9px;color:#555;line-height:1.7;margin-bottom:4px">
+      <b style="color:#e05010">シャトル軌道 (3点制御)</b><br>
+      <span style="color:#1a7a4a">●始点</span> X:${p1?p1.x.toFixed(2):'-'} Y:${p1?p1.y.toFixed(2):'-'} Z:${p1?p1.z.toFixed(2):'-'}<br>
+      <span style="color:#e05010">●最高点</span> X:${p2?p2.x.toFixed(2):'-'} Y:${p2?p2.y.toFixed(2):'-'} Z:${p2?p2.z.toFixed(2):'-'}<br>
+      <span style="color:#1a4a8a">●終点</span> X:${p3?p3.x.toFixed(2):'-'} Y:${p3?p3.y.toFixed(2):'-'} Z:${p3?p3.z.toFixed(2):'-'}
+      </div>
+      <div style="font-size:8px;color:#aaa;margin-bottom:4px">真上:XZ移動 ／ サイド:Y(高さ)移動</div>
+      <div class="fld"><label>色</label><input type="color" value="${s.color}" style="height:20px;padding:1px" oninput="D().shuttles[selEl.idx].color=this.value;drawAll();update3D()"></div>
+      <button onclick="resetShuttleArc(${selEl.idx})" style="margin-top:3px;width:100%;padding:3px;border-radius:4px;border:1px solid var(--border);background:var(--grl);font-size:9px;cursor:pointer">↩ 弧をリセット</button>`;
   } else if(selEl.type==='comment'){
     const c=D().comments[selEl.idx];
     el.innerHTML=`<div class="fld"><label>コメント</label><input type="text" value="${c.text}" oninput="D().comments[selEl.idx].text=this.value;drawAll();update3D()"></div>`;
@@ -558,11 +595,10 @@ function showProp(){
 }
 
 function resetShuttleArc(idx){
-  const s=D().shuttles[idx];if(!s)return;
-  const dist=Math.hypot(s.x1-s.x0,s.z1-s.z0);
-  const peakY=Math.min(5,Math.max(1,dist*0.5));
-  s.nodes=makeShuttleNodes(s.x0,s.z0,s.x1,s.z1,peakY);
-  drawAll();update3D();
+  const s=D().shuttles[idx];if(!s||!s.p1||!s.p3)return;
+  s.p2=makeDefaultP2(s.p1,s.p3);
+  s.p1.y=0;s.p3.y=0;
+  drawAll();update3D();window.notify('弧をリセットしました');
 }
 
 // ━━━━ ステップ管理 ━━━━
@@ -609,35 +645,37 @@ function drawTopView(){
     XT.beginPath();pts.forEach((p,i)=>i?XT.lineTo(p.px,p.py):XT.moveTo(p.px,p.py));XT.stroke();XT.setLineDash([]);
     arrowHead2D(XT,pts,m.color);
   });
-  // シャトル軌道（真上: 始点→終点の直線＋節点表示）
+  // シャトル軌道（真上: 3点制御の曲線＋制御ハンドル）
   d.shuttles.forEach((s,si)=>{
-    if(!s.nodes)return;
-    const p0=topMap(s.x0,s.z0,W,H),p1=topMap(s.x1,s.z1,W,H);
+    if(!s.p1)return;
     const isSel=selEl&&selEl.type==='shuttle'&&selEl.idx===si;
-    // 直線
-    XT.strokeStyle=s.color;XT.lineWidth=isSel?3:2;XT.setLineDash([]);
-    XT.globalAlpha=0.8;
-    XT.beginPath();XT.moveTo(p0.px,p0.py);XT.lineTo(p1.px,p1.py);XT.stroke();
+    const pts=[s.p1,s.p2,s.p3].filter(Boolean);
+    const mapped=pts.map(p=>topMap(p.x,p.z,W,H));
+    // 曲線（Catmull-Rom）
+    XT.strokeStyle=s.color;XT.lineWidth=isSel?2.5:2;XT.setLineDash([]);
+    XT.globalAlpha=isSel?1:0.85;
+    if(mapped.length>=2)drawCatmullRom(XT,mapped);
     XT.globalAlpha=1;
-    // 矢印
-    const a=Math.atan2(p1.py-p0.py,p1.px-p0.px);
-    XT.fillStyle=s.color;XT.beginPath();
-    XT.moveTo(p1.px+Math.cos(a)*9,p1.py+Math.sin(a)*9);
-    XT.lineTo(p1.px+Math.cos(a-2.4)*6,p1.py+Math.sin(a-2.4)*6);
-    XT.lineTo(p1.px+Math.cos(a+2.4)*6,p1.py+Math.sin(a+2.4)*6);
-    XT.closePath();XT.fill();
-    // 始点マーカー
-    XT.fillStyle=s.color;XT.beginPath();XT.arc(p0.px,p0.py,4,0,Math.PI*2);XT.fill();
-    // 終点マーカー
-    XT.strokeStyle=s.color;XT.lineWidth=2;XT.beginPath();XT.arc(p1.px,p1.py,4,0,Math.PI*2);XT.stroke();
-    // 選択時: 節点も表示
-    if(isSel){
-      s.nodes.forEach(n=>{
-        const np=topMap(n.x,n.z,W,H);
-        XT.fillStyle='rgba(255,255,255,0.6)';XT.strokeStyle=s.color;XT.lineWidth=1;
-        XT.beginPath();XT.arc(np.px,np.py,3,0,Math.PI*2);XT.fill();XT.stroke();
-      });
-    }
+    // 終点矢印
+    if(mapped.length>=2)arrowHead2D(XT,mapped.slice(-2),s.color);
+    // 制御ハンドル（3点）
+    const pColors={'p1':'#1a7a4a','p2':'#e05010','p3':'#1a4a8a'};
+    const pLabels={'p1':'始','p2':'頂','p3':'終'};
+    ['p1','p2','p3'].forEach(k=>{
+      if(!s[k])return;
+      const m=topMap(s[k].x,s[k].z,W,H);
+      const isDragK=dragPointKey===k&&si===pendingShuttleIdx;
+      // 外枠
+      XT.fillStyle='#fff';XT.beginPath();XT.arc(m.px,m.py,isSel?8:6,0,Math.PI*2);XT.fill();
+      // 内側
+      XT.fillStyle=pColors[k];XT.beginPath();XT.arc(m.px,m.py,isSel?6:4,0,Math.PI*2);XT.fill();
+      if(isDragK){XT.strokeStyle='#fff';XT.lineWidth=2;XT.beginPath();XT.arc(m.px,m.py,9,0,Math.PI*2);XT.stroke();}
+      // ラベル
+      if(isSel){
+        XT.fillStyle='rgba(0,0,0,0.75)';XT.font='bold 8px sans-serif';XT.textAlign='center';
+        XT.fillText(pLabels[k],m.px,m.py-11);
+      }
+    });
   });
   // 選手
   drawPlayers2D(XT,W,H,true);
@@ -649,34 +687,39 @@ function drawSideView(){
   const W=CS.width,H=CS.height;XS.clearRect(0,0,W,H);
   drawSideBG(XS,W,H);
   const d=D();
-  // シャトル軌道（サイド: 節点を繋ぐ滑らかな曲線）
+  // シャトル軌道（サイド: 3点制御の弧）
   d.shuttles.forEach((s,si)=>{
-    if(!s.nodes)return;
+    if(!s.p1||!s.p3)return;
     const isSel=selEl&&selEl.type==='shuttle'&&selEl.idx===si;
-    const isPending=si===pendingShuttleIdx&&shuttlePhase==='nodes_side';
-    // 全点（始点+節点+終点）でCatmullRomスプライン
-    const allPts=[{x:s.x0,y:0,z:s.z0},...s.nodes,{x:s.x1,y:0,z:s.z1}];
+    const isPending=si===pendingShuttleIdx&&shuttlePhase==='edit';
+    const allPts=[s.p1,s.p2,s.p3].filter(Boolean);
     const mapped=allPts.map(p=>sideMap(p.z,p.y,W,H));
-    // スプライン描画
+    // スプライン
     XS.strokeStyle=s.color;XS.lineWidth=isSel?3:2.5;XS.setLineDash([]);
-    drawCatmullRom(XS,mapped);
-    // 矢印
+    if(mapped.length>=2)drawCatmullRom(XS,mapped);
     if(mapped.length>=2)arrowHead2D(XS,mapped.slice(-2),s.color);
-    // 節点ハンドル
+    // 3点ハンドル
+    const pColors={'p1':'#1a7a4a','p2':'#e05010','p3':'#1a4a8a'};
+    const pLabels={'p1':'①始点','p2':'②頂点','p3':'③終点'};
     if(isSel||isPending){
-      s.nodes.forEach((n,ni)=>{
-        const m=sideMap(n.z,n.y,W,H);
-        const isDrag=ni===dragNodeIdx&&isPending;
-        XS.fillStyle=isDrag?s.color:'rgba(255,255,255,0.9)';
-        XS.strokeStyle=s.color;XS.lineWidth=isDrag?2:1.5;
-        XS.beginPath();XS.arc(m.px,m.py,isDrag?7:5,0,Math.PI*2);XS.fill();XS.stroke();
-        // 縦の高さガイドライン
-        const fl=sideMap(n.z,0,W,H);
-        XS.strokeStyle='rgba(255,100,0,0.2)';XS.lineWidth=0.8;XS.setLineDash([2,4]);
+      ['p1','p2','p3'].forEach(k=>{
+        if(!s[k])return;
+        const m=sideMap(s[k].z,s[k].y,W,H);
+        const isDragK=dragPointKey===k&&si===pendingShuttleIdx;
+        // 高さガイド
+        const fl=sideMap(s[k].z,0,W,H);
+        XS.strokeStyle=pColors[k]+'44';XS.lineWidth=1;XS.setLineDash([2,4]);
         XS.beginPath();XS.moveTo(m.px,m.py);XS.lineTo(fl.px,fl.py);XS.stroke();XS.setLineDash([]);
-        // 番号ラベル
-        XS.fillStyle='rgba(255,100,0,0.8)';XS.font='8px Noto Sans JP,sans-serif';XS.textAlign='center';
-        XS.fillText(ni+1,m.px,m.py-8);
+        // ハンドル
+        XS.fillStyle=isDragK?pColors[k]:'#fff';
+        XS.strokeStyle=pColors[k];XS.lineWidth=isDragK?2.5:1.5;
+        XS.beginPath();XS.arc(m.px,m.py,isDragK?8:6,0,Math.PI*2);XS.fill();XS.stroke();
+        // ラベル
+        XS.fillStyle=pColors[k];XS.font='bold 8px sans-serif';XS.textAlign='center';
+        XS.fillText(pLabels[k],m.px,m.py-11);
+        // Y値表示
+        XS.fillStyle='rgba(255,255,255,0.8)';XS.font='7px sans-serif';
+        XS.fillText(s[k].y.toFixed(1)+'m',m.px,m.py+14);
       });
     }
   });
@@ -939,8 +982,8 @@ function buildShuttleMesh(){
 function getShuttleCurves(){
   const d=D();const O3=window._3D_OFF||{x:0.9,zt:1.6,zb:1.8};const oz=O3.zb;
   _shuttleCurves=d.shuttles.map(s=>{
-    if(!s.nodes)return null;
-    const allPts=[{x:s.x0,y:0,z:s.z0+oz},...s.nodes.map(n=>({x:n.x,y:n.y,z:n.z+oz})),{x:s.x1,y:0,z:s.z1+oz}];
+    if(!s.p1||!s.p3)return null;
+    const allPts=[s.p1,s.p2,s.p3].filter(Boolean).map(p=>({x:p.x,y:p.y,z:p.z+oz}));
     return new THREE.CatmullRomCurve3(allPts.map(p=>new THREE.Vector3(p.x,p.y,p.z)));
   });
 }
