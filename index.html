@@ -1010,7 +1010,7 @@ function drawSideBG(ctx,W,H){
 
   // コート床面（緑）
   ctx.fillStyle='#2e6828';
-  ctx.fillRect(fz(CL),fy(0),fz(0)-fz(CL),cR_-cL_);
+  ctx.fillRect(fz(CL),fy(0),fz(0)-fz(CL),6);
 
   // 床ライン（白）
   ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=2;
@@ -1152,10 +1152,10 @@ function update3D(){
     c.fillStyle='#fff';c.font='bold 38px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(p.label,48,50);
     const tex=new THREE.CanvasTexture(cvs);
     const sm=new THREE.SpriteMaterial({map:tex,depthTest:false,alphaTest:.05,transparent:true});
-    const sp=new THREE.Sprite(sm);sp.position.set(p.x,p.y+1.6,p.z+oz);sp.scale.set(.9,.9,.9); // 頭の高さ1.6m
+    const sp=new THREE.Sprite(sm);sp.position.set(p.x,p.y+0.8,p.z+oz);sp.scale.set(0.8,1.6,1); // 体の中心・高さ1.6m
     const animPl=playerAnim.active&&playerAnim.player&&playerAnim.player.id===p.id&&playerAnim.player.color===p.color;
     sp.visible=!animPl;playerGroup.add(sp);
-    if(p.y>0.05){const pts=[new THREE.Vector3(p.x,p.y+1.6,p.z+oz),new THREE.Vector3(p.x,p.y,p.z+oz)];const lg=new THREE.BufferGeometry().setFromPoints(pts);const lm3=new THREE.LineDashedMaterial({color:p.color,transparent:true,opacity:.4,dashSize:.12,gapSize:.08});const ln=new THREE.Line(lg,lm3);ln.computeLineDistances();playerGroup.add(ln);}
+    if(p.y>0.05){const pts=[new THREE.Vector3(p.x,p.y+0.8,p.z+oz),new THREE.Vector3(p.x,p.y,p.z+oz)];const lg=new THREE.BufferGeometry().setFromPoints(pts);const lm3=new THREE.LineDashedMaterial({color:p.color,transparent:true,opacity:.4,dashSize:.12,gapSize:.08});const ln=new THREE.Line(lg,lm3);ln.computeLineDistances();playerGroup.add(ln);}
   });
   while(trajGroup.children.length)trajGroup.remove(trajGroup.children[0]);
   d.shuttles.forEach(s=>{
@@ -1245,7 +1245,7 @@ function buildPlayerAnimSprite(p){
   c.fillStyle='#fff';c.font='bold 38px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(p.label,48,50);
   const tex=new THREE.CanvasTexture(cvs);
   const sm=new THREE.SpriteMaterial({map:tex,depthTest:false,alphaTest:.05,transparent:true});
-  const sp=new THREE.Sprite(sm);sp.scale.set(.85,.85,.85);sp.visible=false;scene.add(sp);return sp;
+  const sp=new THREE.Sprite(sm);sp.scale.set(0.8,1.6,1);sp.visible=false;scene.add(sp);return sp;
 }
 function startPlayerAnim(moveIdx){
   const d=D();const mv=d.moves[moveIdx];if(!mv||!mv.pts||mv.pts.length<2)return;
@@ -1267,7 +1267,7 @@ function animatePlayer(){
   const curve=new THREE.CatmullRomCurve3(pts3d);
   playerAnim.t+=0.012;if(playerAnim.t>1)playerAnim.t=0;
   const pos=curve.getPoint(playerAnim.t);
-  if(playerAnim.sprite)playerAnim.sprite.position.set(pos.x,pos.y+1.6,pos.z);
+  if(playerAnim.sprite)playerAnim.sprite.position.set(pos.x,pos.y+0.8,pos.z);
   playerAnim.rafId=requestAnimationFrame(animatePlayer);
 }
 function stopPlayerAnim(){
