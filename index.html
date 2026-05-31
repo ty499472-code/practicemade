@@ -1530,24 +1530,74 @@ function playShuttleAction(a, onDone){
 let appMode='edit'; // 'edit' | 'create'
 
 const SHOT_TYPES=[
-  {id:'smash',  label:'スマッシュ', icon:'💥', peakY:1.2, speed:0.025},
-  {id:'clear',  label:'クリア',     icon:'🌙', peakY:4.5, speed:0.012},
-  {id:'drop',   label:'ドロップ',   icon:'💧', peakY:1.8, speed:0.015},
-  {id:'lob',    label:'ロブ',       icon:'⬆️', peakY:4.0, speed:0.013},
-  {id:'drive',  label:'ドライブ',   icon:'➡️', peakY:0.8, speed:0.022},
-  {id:'net',    label:'ネット',     icon:'🎯', peakY:0.5, speed:0.018},
+  // overhead:true → 打点Y=2.0m自動設定（頭上で打つショット）
+  {id:'smash',  label:'スマッシュ', icon:'💥', peakY:1.5, speed:0.025, overhead:true,  hitY:2.0},
+  {id:'clear',  label:'クリア',     icon:'🌙', peakY:5.0, speed:0.012, overhead:true,  hitY:2.0},
+  {id:'cut',    label:'カット',     icon:'✂️', peakY:2.0, speed:0.020, overhead:true,  hitY:2.0},
+  {id:'drop',   label:'ドロップ',   icon:'💧', peakY:2.5, speed:0.015, overhead:true,  hitY:2.0},
+  {id:'lob',    label:'ロブ',       icon:'⬆️', peakY:4.5, speed:0.013, overhead:false, hitY:0.8},
+  {id:'drive',  label:'ドライブ',   icon:'➡️', peakY:1.0, speed:0.022, overhead:false, hitY:1.2},
+  {id:'net',    label:'ネット',     icon:'🎯', peakY:0.6, speed:0.018, overhead:false, hitY:0.8},
+  {id:'push',   label:'プッシュ',   icon:'👊', peakY:0.4, speed:0.024, overhead:false, hitY:1.5},
 ];
 
-// ウィザード状態
-let wiz={
-  step:'shot',      // shot | course | height | player | done
-  shotType:null,    // 選択中のショット
-  fromPlayer:null,  // 打つ選手
-  toZone:null,      // 'near'|'far'(相手陣 or 自陣)
-  pendingShuttleIdx:-1,
-  pendingMovePlayerIdx:-1,
-  actionFlow:[],    // ['shuttle','move','shuttle',...] 完了済み
-};
+// ネット通過チェック＆弧の自動調整
+// p1(始点),p2(頂点),p3(終点)でCatmull-Romを近似し、ネット位置(NET_Z)での高さを計算
+function checkNetClearance(s){
+  if(!s.p1||!s.p2||!s.p3)return;
+  const z0=s.p1.z,z1=s.p2.z,z2=s.p3.z;
+  const zMin=Math.min(z0,z2),zMax=Math.max(z0,z2);
+  if(NET_Z<zMin||NET_Z>zMax)return; // ネットをまたがない
+  // Catmull-Romを20点サンプリングしてネット通過時のYを計算
+  const pts=[s.p1,s.p2,s.p3];
+  function catmullY(t){
+    // 3点CatmullRom (p0=p1, p1=p2, p2=p3 で端点複製)
+    const p0=pts[0],p1=pts[1],p2=pts[2];
+    // 区間 0-1: p0→p1, 区間 1-2: p1→p2
+    if(t<=0.5){
+      const u=t*2;
+      const pp0=p0,pp1=p0,pp2=p1,pp3=p2;
+      return 0.5*((2*pp1.y)+(-pp0.y+pp2.y)*u+(2*pp0.y-5*pp1.y+4*pp2.y-pp3.y)*u*u+(-pp0.y+3*pp1.y-3*pp2.y+pp3.y)*u*u*u);
+    } else {
+      const u=(t-0.5)*2;
+      const pp0=p0,pp1=p1,pp2=p2,pp3=p2;
+      return 0.5*((2*pp1.y)+(-pp0.y+pp2.y)*u+(2*pp0.y-5*pp1.y+4*pp2.y-pp3.y)*u*u+(-pp0.y+3*pp1.y-3*pp2.y+pp3.y)*u*u*u);
+    }
+  }
+  function catmullZ(t){
+    const p0=pts[0],p1=pts[1],p2=pts[2];
+    if(t<=0.5){
+      const u=t*2;
+      const pp0=p0,pp1=p0,pp2=p1,pp3=p2;
+      return 0.5*((2*pp1.z)+(-pp0.z+pp2.z)*u+(2*pp0.z-5*pp1.z+4*pp2.z-pp3.z)*u*u+(-pp0.z+3*pp1.z-3*pp2.z+pp3.z)*u*u*u);
+    } else {
+      const u=(t-0.5)*2;
+      const pp0=p0,pp1=p1,pp2=p2,pp3=p2;
+      return 0.5*((2*pp1.z)+(-pp0.z+pp2.z)*u+(2*pp0.z-5*pp1.z+4*pp2.z-pp3.z)*u*u+(-pp0.z+3*pp1.z-3*pp2.z+pp3.z)*u*u*u);
+    }
+  }
+  // 二分法でNET_Z通過時のtを求める
+  let lo=0,hi=1;
+  for(let i=0;i<20;i++){
+    const mid=(lo+hi)/2;
+    if(catmullZ(mid)<NET_Z)lo=mid;else hi=mid;
+  }
+  const tNet=(lo+hi)/2;
+  const yAtNet=catmullY(tNet);
+  // ネットの高さ（端:1.55m, 中央:1.524m）
+  // p2のX位置からネット高さを補間
+  const netH=NET_HP-(NET_HP-NET_HC)*Math.abs(s.p2?s.p2.x-CW/2:0)/(CW/2)*0.5;
+  const clearance=0.12; // 余裕12cm
+  if(yAtNet<netH+clearance){
+    // p2のYを上げて調整
+    const needed=netH+clearance+0.05;
+    const lift=needed-yAtNet;
+    if(s.p2)s.p2.y=Math.min(9,s.p2.y+lift);
+    // 再確認（1回だけ）
+    const yAfter=catmullY(tNet);
+    if(yAfter<netH+clearance&&s.p2)s.p2.y=Math.min(9,s.p2.y+0.3);
+  }
+}
 
 function setMode(mode){
   appMode=mode;
@@ -1640,30 +1690,48 @@ function wizGoToCourse(){
   wiz.step='course';
   renderWizFlow();
   const el=document.getElementById('wizContent');if(!el)return;
-  // 打点(p1)を選手の現在位置に設定
   const p=wiz.fromPlayer;
-  // シャトルを仮作成
-  const color=wiz.shotType.id==='smash'?'#ff2200':wiz.shotType.id==='clear'?'#0055ff':
-              wiz.shotType.id==='drop'?'#aa00ff':wiz.shotType.id==='lob'?'#00aaff':
-              wiz.shotType.id==='drive'?'#ff8800':'#00cc44';
-  const s={color,p1:{x:p.x,y:p.y+0.8,z:p.z},p2:null,p3:null,shotType:wiz.shotType.id};
+  const st=wiz.shotType;
+  // 打点Y: 頭上ショットは2.0m、それ以外はhitY
+  const hitY=st.hitY||0.8;
+  wiz._hitY=hitY; // 変更可能
+  const shotColors={smash:'#ff2200',clear:'#0055ff',cut:'#cc44ff',drop:'#aa00ff',lob:'#00aaff',drive:'#ff8800',net:'#00cc44',push:'#ff6600'};
+  const color=shotColors[st.id]||'#ff4400';
+  const s={color,p1:{x:p.x,y:hitY,z:p.z},p2:null,p3:null,shotType:st.id};
   D().shuttles.push(s);
   wiz.pendingShuttleIdx=D().shuttles.length-1;
-  // フェーズをcourse(=set_p3に相当)に
   tool='shuttle';shuttlePhase='course_wiz';pendingShuttleIdx=wiz.pendingShuttleIdx;
+  const overheadNote=st.overhead?`
+    <div style="background:rgba(255,200,80,.1);border:1px solid rgba(255,200,80,.3);border-radius:5px;padding:6px 8px;margin-bottom:6px">
+      <div style="font-size:9px;color:#ffd080;margin-bottom:5px">⚡ 頭上ショット — 打点高さ</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input type="range" min="1.0" max="3.5" step="0.1" value="${hitY.toFixed(1)}"
+          style="flex:1;accent-color:#ffd080"
+          oninput="wizUpdateHitY(+this.value,this)">
+        <span id="wizHitYVal" style="font-size:11px;color:#fff;font-weight:700;min-width:32px">${hitY.toFixed(1)}m</span>
+      </div>
+      <div style="font-size:8px;color:rgba(255,255,255,.4);margin-top:3px">1.0m〜3.5m（通常は2.0m）</div>
+    </div>`:'';
   el.innerHTML=`
     <div class="wiz-section">
       <div class="wiz-title"><span class="step-num">3</span>コースを選択</div>
       <div class="wiz-hint">
-        🏸 <b>${wiz.fromPlayer.label}</b> の <b>${wiz.shotType.label}</b><br>
-        真上ビューで<b>落下点をクリック</b>してください。<br>
-        打点は選手の位置に自動設定済みです。
+        🏸 <b>${p.label}</b> の <b>${st.label}</b><br>
+        真上ビューで<b>落下点をクリック</b>
       </div>
-      <div style="background:rgba(45,158,96,.15);border-radius:5px;padding:6px 8px;margin-bottom:6px">
+      ${overheadNote}
+      <div style="background:rgba(45,158,96,.15);border-radius:5px;padding:5px 7px;margin-bottom:5px">
         <div style="font-size:9px;color:#a8e6c0">打点(始点)</div>
-        <div style="font-size:10px;color:#fff">X:${p.x.toFixed(1)} Z:${p.z.toFixed(1)}</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+          <span style="font-size:10px;color:#fff">X:${p.x.toFixed(1)} Z:${p.z.toFixed(1)}</span>
+          <span style="font-size:9px;color:#a8e6c0">Y:</span>
+          <input type="number" id="wizHitY" value="${hitY.toFixed(1)}" min="0" max="4" step="0.1"
+            style="width:42px;font-size:10px;padding:1px 3px;border-radius:3px;border:1px solid #2d9e60;background:#152815;color:#fff"
+            oninput="wizUpdateHitY(+this.value)">
+          <span style="font-size:9px;color:rgba(255,255,255,.4)">m</span>
+        </div>
       </div>
-      <div id="wizCourseTarget" style="background:rgba(255,255,255,.05);border-radius:5px;padding:6px 8px;margin-bottom:6px">
+      <div id="wizCourseTarget" style="background:rgba(255,255,255,.05);border-radius:5px;padding:5px 7px;margin-bottom:5px">
         <div style="font-size:9px;color:rgba(255,255,255,.4)">落下点</div>
         <div style="font-size:10px;color:rgba(255,255,255,.3)">真上ビューをクリック…</div>
       </div>
@@ -1671,6 +1739,13 @@ function wizGoToCourse(){
         次：弧の高さを調整 →
       </button>
     </div>`;
+  drawAll();update3D();
+}
+
+function wizUpdateHitY(v){
+  wiz._hitY=Math.max(0,Math.min(4,v));
+  const s=D().shuttles[wiz.pendingShuttleIdx];
+  if(s&&s.p1)s.p1.y=wiz._hitY;
   drawAll();update3D();
 }
 
@@ -1685,6 +1760,8 @@ function wizHandleCourseClick(px,py,W,H){
   const peakY=wiz.shotType?wiz.shotType.peakY:2.5;
   const mx=(s.p1.x+s.p3.x)/2,mz=(s.p1.z+s.p3.z)/2;
   s.p2={x:mx,y:peakY,z:mz};
+  // ネット通過チェック＆自動調整
+  checkNetClearance(s);
   // コース情報を表示
   const el=document.getElementById('wizCourseTarget');
   if(el)el.innerHTML=`<div style="font-size:9px;color:#a8e6c0">落下点 ✓</div><div style="font-size:10px;color:#fff">X:${endPt.x.toFixed(1)} Z:${endPt.z.toFixed(1)}</div>`;
@@ -1720,7 +1797,6 @@ function wizGoToHeight(){
 // ── Step4: 選手の動きを設定 ──
 function wizGoToPlayer(){
   const s=D().shuttles[wiz.pendingShuttleIdx];if(!s)return;
-  // アクションリストにシャトルを追加
   if(!D().actions)D().actions=[];
   D().actions.push({type:'shuttle',shuttleIdx:wiz.pendingShuttleIdx,
     label:wiz.shotType.label+' ('+wiz.fromPlayer.label+'→)',color:s.color});
@@ -1730,25 +1806,137 @@ function wizGoToPlayer(){
   renderWizFlow();renderActions();
   const d=D();
   const el=document.getElementById('wizContent');if(!el)return;
-  // 打った選手の相手コートにいる選手を提案
-  const fromZ=wiz.fromPlayer.z;
-  const opponents=d.players.filter(p=>
-    fromZ<NET_Z ? p.z>NET_Z : p.z<NET_Z
+
+  // 落下点に基づいて対応選手を自動判定
+  const landZ=s.p3?s.p3.z:NET_Z;
+  const landX=s.p3?s.p3.x:CW/2;
+  // 落下点側のコートにいる選手を抽出
+  const respondents=d.players.filter(p=>
+    landZ<=NET_Z ? p.z<=NET_Z : p.z>NET_Z
   );
-  const playerBtns=d.players.map((p,i)=>`
-    <button class="plyr-btn" onclick="wizStartMove(${i})">
-      <span class="plyr-dot" style="background:${p.color}"></span>
-      ${p.label}（${p.z<NET_Z?'相手':'自陣'}）${opponents.some(o=>o.id===p.id)?'<span style="font-size:8px;color:#a8e6c0"> ← 対応選手</span>':''}
-    </button>`).join('');
+
+  // 自動移動の提案: 落下点に最も近い選手
+  let autoTarget=null;
+  if(respondents.length>=1){
+    autoTarget=respondents.reduce((best,p)=>{
+      const dist=Math.hypot(p.x-landX,p.z-landZ);
+      const bdist=Math.hypot(best.x-landX,best.z-landZ);
+      return dist<bdist?p:best;
+    });
+  }
+  const autoIdx=autoTarget?d.players.indexOf(autoTarget):-1;
+
+  const playerBtns=respondents.map(p=>{
+    const pi=d.players.indexOf(p);
+    const isAuto=p===autoTarget;
+    const dist=Math.hypot(p.x-landX,p.z-landZ).toFixed(1);
+    return `<div style="display:flex;gap:2px;margin-bottom:2px">
+      <button class="plyr-btn${isAuto?' on':''}" style="flex:1" onclick="wizStartMove(${pi})">
+        <span class="plyr-dot" style="background:${p.color}"></span>
+        <span style="flex:1">${p.label}</span>
+        <span style="font-size:8px;color:${isAuto?'#a8e6c0':'rgba(255,255,255,.4)'}">${dist}m</span>
+      </button>
+      <button title="自動で落下点へ" style="padding:4px 7px;border-radius:4px;border:1px solid rgba(255,200,80,.4);background:rgba(255,200,80,.12);color:#ffd080;font-size:9px;cursor:pointer;white-space:nowrap" onclick="wizAutoMove(${pi})">⚡自動</button>
+    </div>`;
+  }).join('');
+
+  const otherBtns=d.players.filter(p=>!respondents.includes(p)).map(p=>{
+    const pi=d.players.indexOf(p);
+    return `<button class="plyr-btn" onclick="wizStartMove(${pi})" style="opacity:.6">
+      <span class="plyr-dot" style="background:${p.color}"></span>${p.label}（反対側）
+    </button>`;
+  }).join('');
+
   el.innerHTML=`
     <div class="wiz-section">
       <div class="wiz-title"><span class="step-num">5</span>対応する選手の動き</div>
-      <div class="wiz-hint">
-        動かす選手を選んで、<br>真上ビューで<b>選手をドラッグ</b>して<br>移動先を指定してください。
-      </div>
+      <div class="wiz-hint">落下点に対応する選手を選択。<br>緑ハイライトが最短距離の選手。</div>
+      ${respondents.length===1?`
+      <div style="background:rgba(45,158,96,.2);border-radius:5px;padding:5px 8px;margin-bottom:6px;font-size:9px;color:#a8e6c0">
+        💡 ${autoTarget.label} が自動提案されています
+      </div>`:''}
       <div class="player-pick">${playerBtns}</div>
-      <button class="wiz-skip" onclick="wizSkipPlayer()" style="margin-top:8px">選手の動きはなし（次のショットへ）</button>
+      ${otherBtns?`<div style="font-size:8px;color:rgba(255,255,255,.3);margin:4px 0 2px">その他の選手</div><div class="player-pick">${otherBtns}</div>`:''}
+      ${respondents.length===1&&autoTarget?`
+      <button class="wiz-next" onclick="wizAutoMove(${autoIdx})" style="margin-top:6px">
+        ⚡ ${autoTarget.label} を自動で落下点へ移動
+      </button>`:''}
+      ${respondents.length>1?`
+      <button class="wiz-next" onclick="wizAutoMoveAll()" style="margin-top:6px;background:#c85a0a">
+        ⚡ 全員を自動で落下点へ移動
+      </button>`:''}
+      <button class="wiz-skip" onclick="wizSkipPlayer()" style="margin-top:4px">選手の動きはなし</button>
     </div>`;
+}
+
+// 自動移動: 落下点付近(±0.5m)へ選手を移動
+// 全選手を自動で落下点方向へ移動
+function wizAutoMoveAll(){
+  const d=D();
+  const s=D().shuttles[wiz.pendingShuttleIdx];if(!s||!s.p3)return;
+  const landZ=s.p3.z;const landX=s.p3.x;
+  // 落下点側の選手を全員移動
+  const respondents=d.players.filter(p=>
+    landZ<=NET_Z ? p.z<=NET_Z : p.z>NET_Z
+  );
+  respondents.forEach((p,ri)=>{
+    const pi=d.players.indexOf(p);
+    wizAutoMoveOne(pi, ri===respondents.length-1); // 最後だけwizGoToNextShot
+  });
+}
+
+// 単一選手を自動移動（内部用）
+function wizAutoMoveOne(playerIdx, isLast){
+  const d=D();const p=d.players[playerIdx];if(!p)return;
+  const s=D().shuttles[wiz.pendingShuttleIdx];if(!s||!s.p3)return;
+  const startPt={x:p.x,y:p.y,z:p.z};
+  const endX=Math.max(0.3,Math.min(CW-0.3,s.p3.x));
+  const isNearSide=s.p3.z<=NET_Z;
+  const endZ=isNearSide
+    ?Math.max(0.3,Math.min(NET_Z-0.3,s.p3.z))
+    :Math.max(NET_Z+0.3,Math.min(CL-0.3,s.p3.z));
+  const endPt={x:endX,y:p.y,z:endZ};
+  if(Math.hypot(endPt.x-startPt.x,endPt.z-startPt.z)<0.25)return;
+  if(!D().actions)D().actions=[];
+  D().moves.push({playerId:p.id,playerIdx,color:p.color,pts:[startPt,endPt]});
+  D().actions.push({type:'move',moveIdx:D().moves.length-1,
+    label:p.label+' 移動(自動)',color:p.color,playerId:p.id});
+  p.x=endPt.x;p.z=endPt.z;
+  wiz.actionFlow.push({type:'move'});
+  if(isLast){renderActions();renderWizFlow();drawAll();update3D();wizGoToNextShot();}
+}
+
+function wizAutoMove(playerIdx){
+  const d=D();const p=d.players[playerIdx];if(!p)return;
+  const s=D().shuttles[wiz.pendingShuttleIdx];if(!s||!s.p3)return;
+  const startPt={x:p.x,y:p.y,z:p.z};
+  // 落下点付近（X方向は少しオフセット）
+  const endX=Math.max(0.3,Math.min(CW-0.3,s.p3.x));
+  const endZ=Math.max(0.3,Math.min(NET_Z-0.3,s.p3.z<NET_Z?s.p3.z:NET_Z-0.5));
+  const endZfar=Math.max(NET_Z+0.3,Math.min(CL-0.3,s.p3.z>NET_Z?s.p3.z:NET_Z+0.5));
+  const endPt={x:endX,y:p.y,z:s.p3.z<NET_Z?endZ:endZfar};
+  // 距離が短すぎる場合はスキップ
+  if(Math.hypot(endPt.x-startPt.x,endPt.z-startPt.z)<0.3){wizSkipPlayer();return;}
+  // 移動データ作成
+  if(!D().actions)D().actions=[];
+  D().moves.push({playerId:p.id,playerIdx,color:p.color,pts:[startPt,endPt]});
+  D().actions.push({type:'move',moveIdx:D().moves.length-1,
+    label:p.label+' 移動(自動)',color:p.color,playerId:p.id});
+  // 選手位置更新
+  p.x=endPt.x;p.z=endPt.z;
+  wiz.actionFlow.push({type:'move'});
+  renderActions();renderWizFlow();drawAll();update3D();
+  wizGoToNextShot();
+}
+
+function wizUpdateHitY(val, slider){
+  wiz._hitY=val;
+  const span=document.getElementById('wizHitYVal');
+  if(span)span.textContent=val.toFixed(1)+'m';
+  // シャトルのp1.yを更新
+  const s=D().shuttles[wiz.pendingShuttleIdx];
+  if(s&&s.p1)s.p1.y=val;
+  drawAll();update3D();
 }
 
 function wizStartMove(playerIdx){
