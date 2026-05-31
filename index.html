@@ -11,35 +11,40 @@
 :root{--green:#1a7a4a;--gl:#e8f5ee;--blue:#1a4a8a;--bl:#e8eef8;--orange:#c85a0a;--ol:#fdf0e8;--grl:#f5f5f3;--border:#e0e0da;--font:'Noto Sans JP',sans-serif;}
 body{font-family:var(--font);background:#1a1a1a;color:#222;height:100vh;overflow:hidden;display:flex;flex-direction:column}
 /* HEADER */
-.hdr{background:var(--green);color:#fff;padding:0 10px;display:flex;align-items:center;gap:7px;height:44px;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.3)}
-.logo{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;white-space:nowrap}
+.hdr{background:var(--green);color:#fff;padding:0 10px;display:flex;align-items:center;gap:7px;height:38px;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1.5px;white-space:nowrap}
 .logo em{color:#a8e6c0;font-size:10px;font-family:var(--font);font-style:normal;letter-spacing:0;margin-left:3px}
 .htabs{display:flex;gap:1px;background:rgba(0,0,0,.2);border-radius:4px;padding:2px;flex-shrink:0}
-.htab{padding:2px 6px;border-radius:3px;font-size:10px;cursor:pointer;border:none;background:transparent;color:rgba(255,255,255,.6);font-family:var(--font)}
+.htab{padding:1px 5px;border-radius:3px;font-size:9px;cursor:pointer;border:none;background:transparent;color:rgba(255,255,255,.6);font-family:var(--font)}
 .htab.on{background:rgba(255,255,255,.22);color:#fff;font-weight:500}
 .hsp{flex:1}
 .hbtn{padding:3px 8px;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-size:10px;cursor:pointer;font-family:var(--font);white-space:nowrap}
 .hbtn:hover{background:rgba(255,255,255,.15)}.hbtn.sv{background:rgba(255,255,255,.18)}
 /* MAIN: left_sb | center_area | right_sb */
-.main{display:grid;grid-template-columns:180px 1fr 196px;flex:1;overflow:hidden;min-height:0}
+.main{display:grid;grid-template-columns:148px 1fr 192px;flex:1;overflow:hidden;min-height:0}
 /* LEFT SIDEBAR */
 .sb,.sbr{background:#fff;overflow-y:auto;display:flex;flex-direction:column}
 .sb{border-right:1px solid var(--border)}.sbr{border-left:1px solid var(--border)}
-.pan{padding:7px 9px;border-bottom:1px solid var(--border)}
-.plbl{font-size:9px;color:#999;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:4px}
+.pan{padding:5px 7px;border-bottom:1px solid var(--border)}
+.plbl{font-size:8px;color:#999;font-weight:700;letter-spacing:.7px;text-transform:uppercase;margin-bottom:3px}
 .tgr{display:grid;grid-template-columns:1fr 1fr;gap:2px}
-.tb{padding:4px 2px;border-radius:4px;border:1px solid var(--border);background:var(--grl);color:#555;font-size:9px;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px;font-family:var(--font)}
-.tb svg{width:13px;height:13px}.tb.on{background:var(--bl);color:var(--blue);border-color:var(--blue);font-weight:700}
+.tb{padding:3px 2px;border-radius:4px;border:1px solid var(--border);background:var(--grl);color:#555;font-size:9px;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px;font-family:var(--font)}
+.tb svg{width:12px;height:12px}.tb{font-size:9px}.tb.on{background:var(--bl);color:var(--blue);border-color:var(--blue);font-weight:700}
 .pal{display:flex;flex-direction:column;gap:2px}
-.pi{display:flex;align-items:center;gap:4px;padding:3px 5px;border-radius:4px;border:1px solid var(--border);background:var(--grl);font-size:10px;cursor:grab;user-select:none}
+.pi{display:flex;align-items:center;gap:3px;padding:2px 4px;border-radius:4px;border:1px solid var(--border);background:var(--grl);font-size:9px;cursor:grab;user-select:none}
 .pi:hover{background:#eef4ff}
-.pd{width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700;flex-shrink:0}
-.cr{display:flex;align-items:center;gap:4px;font-size:10px;color:#666;margin-bottom:2px}
+.pd{width:12px;height:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px;font-weight:700;flex-shrink:0}
+.cr{display:flex;align-items:center;gap:3px;font-size:9px;color:#666;margin-bottom:1px}
 .cr input[type=color]{width:20px;height:16px;border:1px solid var(--border);border-radius:3px;padding:1px;cursor:pointer}
 /* CENTER AREA: 上2小+下1大 */
 .center{display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .top-panes{display:grid;grid-template-columns:1fr 1fr;height:38%;flex-shrink:0;min-height:0}
 .three-pane{flex:1;position:relative;overflow:hidden;min-height:0}
+/* 作成モード */
+.create-mode .top-panes{height:65%}
+.create-mode .three-pane{flex:none;height:35%;display:flex;flex-direction:row}
+.wizard-panel{width:320px;background:#1a1a2e;flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto;border-left:2px solid #2d9e60}
+#threeContainer.small{flex:1;min-width:0}
 .pane2d{position:relative;overflow:hidden;background:#111;display:flex;align-items:center;justify-content:center}
 .pane2d+.pane2d{border-left:2px solid #2d9e60}
 .top-panes .pane2d{border-bottom:2px solid #2d9e60}
@@ -53,21 +58,21 @@ canvas.edit{display:block;cursor:crosshair}
 .cbtn{padding:3px 8px;border-radius:4px;background:rgba(0,0,0,.6);color:rgba(255,255,255,.8);font-size:9px;cursor:pointer;border:1px solid rgba(255,255,255,.2);font-family:var(--font)}
 .cbtn:hover{background:rgba(29,158,117,.7)}
 /* ANIM BAR */
-.abr{background:#152815;padding:5px 9px;display:flex;align-items:center;gap:5px;flex-shrink:0;border-top:1px solid #0a1e0a}
+.abr{background:#152815;padding:3px 7px;display:flex;align-items:center;gap:5px;flex-shrink:0;border-top:1px solid #0a1e0a}
 .abr input[type=range]{flex:1;accent-color:#2d9e60}
-.ab{width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#7dd4a0;flex-shrink:0}
+.ab{width:20px;height:20px;border-radius:4px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#7dd4a0;flex-shrink:0}
 .ab:hover{background:rgba(255,255,255,.2)}.ab.pl{background:#2d9e60;color:#fff}.ab.sa{background:rgba(255,140,0,.7)}
 .slbl{font-size:10px;color:#7dd4a0;white-space:nowrap;min-width:34px}
 /* RIGHT SIDEBAR */
-.fld{display:flex;flex-direction:column;gap:2px;margin-bottom:4px}
+.fld{display:flex;flex-direction:column;gap:1px;margin-bottom:3px}
 .fld label{font-size:9px;color:#999;font-weight:500}
-.fld input,.fld textarea,.fld select{font-size:11px;padding:3px 5px;border-radius:4px;border:1px solid var(--border);background:var(--grl);color:#222;font-family:var(--font);width:100%}
+.fld input,.fld textarea,.fld select{font-size:10px;padding:2px 4px;border-radius:4px;border:1px solid var(--border);background:var(--grl);color:#222;font-family:var(--font);width:100%}
 .fld textarea{resize:vertical;min-height:36px}
 .bgs{display:flex;gap:2px;flex-wrap:wrap}
 .bdg{display:inline-block;padding:1px 5px;border-radius:7px;font-size:8px;font-weight:700}
 .bg{background:var(--gl);color:var(--green)}.bb{background:var(--bl);color:var(--blue)}.bo{background:var(--ol);color:var(--orange)}
-.slist{display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto}
-.si{padding:3px 5px;border-radius:4px;border:1px solid var(--border);font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;background:var(--grl)}
+.slist{display:flex;flex-direction:column;gap:2px;max-height:90px;overflow-y:auto}
+.si{padding:2px 4px;border-radius:4px;border:1px solid var(--border);font-size:9px;cursor:pointer;display:flex;align-items:center;gap:3px;background:var(--grl)}
 .si.on{background:var(--gl);border-color:var(--green);color:var(--green)}
 .sn{width:14px;height:14px;border-radius:50%;background:#ddd;color:#666;font-size:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700}
 .si.on .sn{background:var(--green);color:#fff}
@@ -86,11 +91,38 @@ canvas.edit{display:block;cursor:crosshair}
 .svn{font-size:11px;font-weight:500}
 .ntf{position:fixed;bottom:12px;right:12px;background:var(--green);color:#fff;padding:6px 12px;border-radius:6px;font-size:11px;z-index:9999;opacity:0;transform:translateY(5px);transition:all .28s;pointer-events:none}
 .ntf.show{opacity:1;transform:translateY(0)}
+/* ウィザード */
+.wiz-section{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.1)}
+.wiz-title{color:#a8e6c0;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.wiz-title .step-num{background:#2d9e60;color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
+.wiz-hint{font-size:9px;color:rgba(255,255,255,.5);margin-bottom:8px;line-height:1.5}
+.shot-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px}
+.shot-btn{padding:6px 4px;border-radius:5px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:rgba(255,255,255,.8);font-size:10px;cursor:pointer;text-align:center;font-family:var(--font);transition:all .15s}
+.shot-btn:hover{background:rgba(45,158,96,.4);border-color:#2d9e60}
+.shot-btn.on{background:#2d9e60;color:#fff;border-color:#2d9e60;font-weight:700}
+.wiz-next{width:100%;padding:8px;border-radius:5px;border:none;background:#2d9e60;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:4px}
+.wiz-next:hover{background:#1a7a4a}.wiz-next:disabled{background:#444;color:#666;cursor:not-allowed}
+.wiz-next.warn{background:#c85a0a}.wiz-next.warn:hover{background:#a04008}
+.wiz-skip{width:100%;padding:5px;border-radius:5px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.5);font-size:10px;cursor:pointer;font-family:var(--font);margin-top:3px}
+.wiz-skip:hover{background:rgba(255,255,255,.1)}
+.player-pick{display:flex;flex-direction:column;gap:4px}
+.plyr-btn{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:5px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;font-size:10px;cursor:pointer;font-family:var(--font)}
+.plyr-btn:hover{background:rgba(255,255,255,.12)}.plyr-btn.on{border-color:#2d9e60;background:rgba(45,158,96,.3)}
+.plyr-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.wiz-flow{display:flex;align-items:center;gap:3px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.1)}
+.wiz-flow-item{padding:2px 7px;border-radius:10px;font-size:9px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.6)}
+.wiz-flow-item.done{background:rgba(45,158,96,.4);color:#a8e6c0}
+.wiz-flow-item.current{background:#2d9e60;color:#fff;font-weight:700}
+.wiz-flow-sep{color:rgba(255,255,255,.3);font-size:9px}
+/* モードトグル */
+.mode-toggle{display:flex;gap:2px;align-items:center;margin-left:6px}
+.mode-btn{padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.6);font-size:9px;cursor:pointer;font-family:var(--font)}
+.mode-btn.on{background:rgba(255,255,255,.2);color:#fff;font-weight:700}
 /* シャトル軌道モード表示 */
 .shuttle-mode{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);background:rgba(255,100,0,.85);color:#fff;font-size:9px;padding:2px 8px;border-radius:5px;z-index:5;pointer-events:none;white-space:nowrap;display:none}
 .shuttle-mode.show{display:block}
 /* アクションリスト */
-.aclist{display:flex;flex-direction:column;gap:2px;max-height:180px;overflow-y:auto}
+.aclist{display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto}
 .aci{display:flex;align-items:center;gap:3px;padding:3px 5px;border-radius:4px;border:1px solid var(--border);background:var(--grl);font-size:10px;cursor:pointer}
 .aci:hover{background:var(--gl)}.aci.on{background:var(--bl);border-color:var(--blue)}
 .aci.playing{background:#fffbe6;border-color:#e0a010;animation:pulse .6s infinite alternate}
@@ -116,6 +148,10 @@ canvas.edit{display:block;cursor:crosshair}
   <div class="htabs" id="tt"><button class="htab on" onclick="setType('tech',this)">技術</button><button class="htab" onclick="setType('knock',this)">ノック</button><button class="htab" onclick="setType('pattern',this)">パターン</button></div>
   <div class="htabs" id="ct"><button class="htab on" onclick="setCat('basic',this)">基礎</button><button class="htab" onclick="setCat('tactic',this)">戦術</button><button class="htab" onclick="setCat('scene',this)">場面</button><button class="htab" onclick="setCat('match',this)">実践</button></div>
   <div class="hsp"></div>
+  <div class="mode-toggle">
+    <button class="mode-btn on" id="modeEdit" onclick="setMode('edit')">✏️ 編集</button>
+    <button class="mode-btn" id="modeCreate" onclick="setMode('create')">🎯 作成</button>
+  </div>
   <button class="hbtn" onclick="clearAll()">🗑</button>
   <button class="hbtn sv" onclick="saveDrill()">💾 保存</button>
 </div>
@@ -167,9 +203,15 @@ canvas.edit{display:block;cursor:crosshair}
   </div>
   <!-- 3D -->
   <div class="three-pane" id="pane3d">
+    <div id="threeContainer" style="width:100%;height:100%">
     <div class="pane-lbl">🔄 3Dビュー</div>
     <div class="ctrl-hint">左ドラッグ:回転 / 右ドラッグ:パン / ホイール:ズーム</div>
-    <div id="threeContainer" style="width:100%;height:100%"></div>
+    </div>
+    <!-- ウィザードパネル(作成モード時に表示) -->
+    <div class="wizard-panel" id="wizardPanel" style="display:none">
+      <div class="wiz-flow" id="wizFlow"></div>
+      <div id="wizContent"></div>
+    </div>
     <div class="cam-btns">
       <button class="cbtn" onclick="setCam('free')">🔄 自由</button>
       <button class="cbtn" onclick="setCam('top')">📐 真上</button>
@@ -376,6 +418,10 @@ CT.onmousedown=e=>{
   const {px,py}=gp(e,CT);const W=CT.width,H=CT.height;const d=D();
   isDown=true;activeC=CT;
 
+  // ウィザード: コース選択クリック
+  if(appMode==='create'&&wiz.step==='course'){
+    if(wizHandleCourseClick(px,py,W,H))return;
+  }
   if(tool==='shuttle'){
     // editフェーズ中はハンドルをヒットテスト
     if(shuttlePhase==='edit'){
@@ -588,6 +634,7 @@ CT.onmouseup=e=>{
         D().actions.push({type:'move',moveIdx:D().moves.length-1,
           label:(mv.playerId||'?')+' 移動',color:mv.color,playerId:mv.playerId});
         renderActions();
+        if(appMode==='create')wizOnMoveComplete();
       } else {
         // 移動距離なければ削除
         D().moves.splice(selEl.idx,1);
@@ -1476,6 +1523,280 @@ function playShuttleAction(a, onDone){
   }
   tick();
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 作成モード & ウィザード
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let appMode='edit'; // 'edit' | 'create'
+
+const SHOT_TYPES=[
+  {id:'smash',  label:'スマッシュ', icon:'💥', peakY:1.2, speed:0.025},
+  {id:'clear',  label:'クリア',     icon:'🌙', peakY:4.5, speed:0.012},
+  {id:'drop',   label:'ドロップ',   icon:'💧', peakY:1.8, speed:0.015},
+  {id:'lob',    label:'ロブ',       icon:'⬆️', peakY:4.0, speed:0.013},
+  {id:'drive',  label:'ドライブ',   icon:'➡️', peakY:0.8, speed:0.022},
+  {id:'net',    label:'ネット',     icon:'🎯', peakY:0.5, speed:0.018},
+];
+
+// ウィザード状態
+let wiz={
+  step:'shot',      // shot | course | height | player | done
+  shotType:null,    // 選択中のショット
+  fromPlayer:null,  // 打つ選手
+  toZone:null,      // 'near'|'far'(相手陣 or 自陣)
+  pendingShuttleIdx:-1,
+  pendingMovePlayerIdx:-1,
+  actionFlow:[],    // ['shuttle','move','shuttle',...] 完了済み
+};
+
+function setMode(mode){
+  appMode=mode;
+  document.getElementById('modeEdit').classList.toggle('on', mode==='edit');
+  document.getElementById('modeCreate').classList.toggle('on', mode==='create');
+  const center=document.querySelector('.center');
+  const wizPanel=document.getElementById('wizardPanel');
+  const threeContainer=document.getElementById('threeContainer');
+  if(mode==='create'){
+    center.classList.add('create-mode');
+    wizPanel.style.display='flex';
+    wizPanel.style.flexDirection='column';
+    threeContainer.classList.add('small');
+    startWizard();
+  } else {
+    center.classList.remove('create-mode');
+    wizPanel.style.display='none';
+    threeContainer.classList.remove('small');
+    resetWizard();
+  }
+  resizeAll();
+}
+
+function startWizard(){
+  wiz={step:'shot',shotType:null,fromPlayer:null,pendingShuttleIdx:-1,pendingMovePlayerIdx:-1,actionFlow:[]};
+  renderWizFlow();
+  renderWizShot();
+}
+
+function resetWizard(){
+  wiz={step:'shot',shotType:null,fromPlayer:null,pendingShuttleIdx:-1,pendingMovePlayerIdx:-1,actionFlow:[]};
+}
+
+// ── フロー表示 ──
+function renderWizFlow(){
+  const el=document.getElementById('wizFlow');if(!el)return;
+  const steps=wiz.actionFlow.map((a,i)=>{
+    const icon=a.type==='shuttle'?'🏸':'🏃';
+    return `<span class="wiz-flow-item done">${icon}${i+1}</span><span class="wiz-flow-sep">→</span>`;
+  }).join('');
+  const cur=wiz.step==='done'?'':`<span class="wiz-flow-item current">${wiz.step==='shot'||wiz.step==='course'||wiz.step==='height'?'🏸':'🏃'}?</span>`;
+  el.innerHTML=steps+cur||'<span style="font-size:9px;color:rgba(255,255,255,.4)">アクションを追加していきます</span>';
+}
+
+// ── Step1: ショット選択 ──
+function renderWizShot(){
+  wiz.step='shot';
+  const d=D();
+  const el=document.getElementById('wizContent');if(!el)return;
+  // 打つ選手を選ぶ
+  const playerBtns=d.players.map((p,i)=>`
+    <button class="plyr-btn${wiz.fromPlayer&&wiz.fromPlayer.idx===i?' on':''}" onclick="wizSelectPlayer(${i})">
+      <span class="plyr-dot" style="background:${p.color}"></span>${p.label}（${p.z<NET_Z?'相手':'自陣'}）
+    </button>`).join('');
+  // ショットボタン
+  const shotBtns=SHOT_TYPES.map(s=>`
+    <button class="shot-btn${wiz.shotType&&wiz.shotType.id===s.id?' on':''}" onclick="wizSelectShot('${s.id}')">
+      ${s.icon}<br>${s.label}
+    </button>`).join('');
+  el.innerHTML=`
+    <div class="wiz-section">
+      <div class="wiz-title"><span class="step-num">1</span>打つ選手</div>
+      <div class="player-pick">${playerBtns}</div>
+    </div>
+    <div class="wiz-section">
+      <div class="wiz-title"><span class="step-num">2</span>ショットの種類</div>
+      <div class="shot-grid">${shotBtns}</div>
+    </div>
+    <div class="wiz-section">
+      <button class="wiz-next" id="wizNextShot" onclick="wizGoToCourse()" ${wiz.fromPlayer&&wiz.shotType?'':'disabled'}>
+        次：コースを選択 →
+      </button>
+    </div>`;
+}
+
+function wizSelectPlayer(idx){
+  const p=D().players[idx];
+  wiz.fromPlayer={idx,x:p.x,y:p.y,z:p.z,id:p.id,color:p.color,label:p.label};
+  renderWizShot();
+}
+
+function wizSelectShot(id){
+  wiz.shotType=SHOT_TYPES.find(s=>s.id===id);
+  renderWizShot();
+}
+
+// ── Step2: コース選択（真上クリック） ──
+function wizGoToCourse(){
+  if(!wiz.fromPlayer||!wiz.shotType)return;
+  wiz.step='course';
+  renderWizFlow();
+  const el=document.getElementById('wizContent');if(!el)return;
+  // 打点(p1)を選手の現在位置に設定
+  const p=wiz.fromPlayer;
+  // シャトルを仮作成
+  const color=wiz.shotType.id==='smash'?'#ff2200':wiz.shotType.id==='clear'?'#0055ff':
+              wiz.shotType.id==='drop'?'#aa00ff':wiz.shotType.id==='lob'?'#00aaff':
+              wiz.shotType.id==='drive'?'#ff8800':'#00cc44';
+  const s={color,p1:{x:p.x,y:p.y+0.8,z:p.z},p2:null,p3:null,shotType:wiz.shotType.id};
+  D().shuttles.push(s);
+  wiz.pendingShuttleIdx=D().shuttles.length-1;
+  // フェーズをcourse(=set_p3に相当)に
+  tool='shuttle';shuttlePhase='course_wiz';pendingShuttleIdx=wiz.pendingShuttleIdx;
+  el.innerHTML=`
+    <div class="wiz-section">
+      <div class="wiz-title"><span class="step-num">3</span>コースを選択</div>
+      <div class="wiz-hint">
+        🏸 <b>${wiz.fromPlayer.label}</b> の <b>${wiz.shotType.label}</b><br>
+        真上ビューで<b>落下点をクリック</b>してください。<br>
+        打点は選手の位置に自動設定済みです。
+      </div>
+      <div style="background:rgba(45,158,96,.15);border-radius:5px;padding:6px 8px;margin-bottom:6px">
+        <div style="font-size:9px;color:#a8e6c0">打点(始点)</div>
+        <div style="font-size:10px;color:#fff">X:${p.x.toFixed(1)} Z:${p.z.toFixed(1)}</div>
+      </div>
+      <div id="wizCourseTarget" style="background:rgba(255,255,255,.05);border-radius:5px;padding:6px 8px;margin-bottom:6px">
+        <div style="font-size:9px;color:rgba(255,255,255,.4)">落下点</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.3)">真上ビューをクリック…</div>
+      </div>
+      <button class="wiz-next" id="wizNextCourse" onclick="wizGoToHeight()" disabled>
+        次：弧の高さを調整 →
+      </button>
+    </div>`;
+  drawAll();update3D();
+}
+
+// ウィザードコースクリック処理（CT.onmousedown から呼ばれる）
+function wizHandleCourseClick(px,py,W,H){
+  if(wiz.step!=='course')return false;
+  const r=topInv(px,py,W,H);
+  const endPt={x:Math.max(0,Math.min(CW,r.x)),y:0,z:Math.max(0,Math.min(CL,r.z))};
+  const s=D().shuttles[wiz.pendingShuttleIdx];if(!s)return false;
+  s.p3=endPt;
+  // p2を自動生成（ショットタイプに応じた高さ）
+  const peakY=wiz.shotType?wiz.shotType.peakY:2.5;
+  const mx=(s.p1.x+s.p3.x)/2,mz=(s.p1.z+s.p3.z)/2;
+  s.p2={x:mx,y:peakY,z:mz};
+  // コース情報を表示
+  const el=document.getElementById('wizCourseTarget');
+  if(el)el.innerHTML=`<div style="font-size:9px;color:#a8e6c0">落下点 ✓</div><div style="font-size:10px;color:#fff">X:${endPt.x.toFixed(1)} Z:${endPt.z.toFixed(1)}</div>`;
+  const btn=document.getElementById('wizNextCourse');if(btn)btn.disabled=false;
+  drawAll();update3D();
+  return true;
+}
+
+// ── Step3: 弧の高さ調整 ──
+function wizGoToHeight(){
+  const s=D().shuttles[wiz.pendingShuttleIdx];if(!s||!s.p3)return;
+  wiz.step='height';shuttlePhase='edit';
+  renderWizFlow();
+  const el=document.getElementById('wizContent');if(!el)return;
+  el.innerHTML=`
+    <div class="wiz-section">
+      <div class="wiz-title"><span class="step-num">4</span>弧の高さを調整</div>
+      <div class="wiz-hint">
+        サイドビューで<b>②頂点ハンドル</b>を<br>ドラッグして弧の高さを調整。<br>
+        問題なければそのまま次へ。
+      </div>
+      <div style="font-size:9px;color:rgba(255,255,255,.5);margin-bottom:8px">
+        現在の高さ: <span id="wizPeakY">${(s.p2?s.p2.y:2.5).toFixed(1)}m</span>
+      </div>
+      <button class="wiz-next" onclick="wizGoToPlayer()">
+        次：選手の動きを設定 →
+      </button>
+      <button class="wiz-skip" onclick="wizSkipPlayer()">選手の動きはなし（次のショットへ）</button>
+    </div>`;
+  selEl={type:'shuttle',idx:wiz.pendingShuttleIdx};showProp();drawAll();update3D();
+}
+
+// ── Step4: 選手の動きを設定 ──
+function wizGoToPlayer(){
+  const s=D().shuttles[wiz.pendingShuttleIdx];if(!s)return;
+  // アクションリストにシャトルを追加
+  if(!D().actions)D().actions=[];
+  D().actions.push({type:'shuttle',shuttleIdx:wiz.pendingShuttleIdx,
+    label:wiz.shotType.label+' ('+wiz.fromPlayer.label+'→)',color:s.color});
+  wiz.actionFlow.push({type:'shuttle'});
+  wiz.step='player';
+  tool='select';shuttlePhase=null;selEl=null;
+  renderWizFlow();renderActions();
+  const d=D();
+  const el=document.getElementById('wizContent');if(!el)return;
+  // 打った選手の相手コートにいる選手を提案
+  const fromZ=wiz.fromPlayer.z;
+  const opponents=d.players.filter(p=>
+    fromZ<NET_Z ? p.z>NET_Z : p.z<NET_Z
+  );
+  const playerBtns=d.players.map((p,i)=>`
+    <button class="plyr-btn" onclick="wizStartMove(${i})">
+      <span class="plyr-dot" style="background:${p.color}"></span>
+      ${p.label}（${p.z<NET_Z?'相手':'自陣'}）${opponents.some(o=>o.id===p.id)?'<span style="font-size:8px;color:#a8e6c0"> ← 対応選手</span>':''}
+    </button>`).join('');
+  el.innerHTML=`
+    <div class="wiz-section">
+      <div class="wiz-title"><span class="step-num">5</span>対応する選手の動き</div>
+      <div class="wiz-hint">
+        動かす選手を選んで、<br>真上ビューで<b>選手をドラッグ</b>して<br>移動先を指定してください。
+      </div>
+      <div class="player-pick">${playerBtns}</div>
+      <button class="wiz-skip" onclick="wizSkipPlayer()" style="margin-top:8px">選手の動きはなし（次のショットへ）</button>
+    </div>`;
+}
+
+function wizStartMove(playerIdx){
+  wiz.step='move_drag';wiz.pendingMovePlayerIdx=playerIdx;
+  tool='move';
+  const p=D().players[playerIdx];
+  const el=document.getElementById('wizContent');if(!el)return;
+  el.innerHTML=`
+    <div class="wiz-section">
+      <div class="wiz-title"><span class="step-num">5</span>${p.label} の移動</div>
+      <div class="wiz-hint">
+        真上ビューで<b>${p.label}をドラッグ</b>して<br>移動先を指定してください。
+      </div>
+      <div id="wizMoveStatus" style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:8px">ドラッグ待ち…</div>
+      <button class="wiz-next" id="wizNextMove" onclick="wizFinishMove()" disabled>
+        次のショットへ →
+      </button>
+      <button class="wiz-skip" onclick="wizSkipPlayer()">この選手の動きをキャンセル</button>
+    </div>`;
+}
+
+// 移動完了時に呼ばれる（mouseup hookから）
+function wizOnMoveComplete(){
+  if(wiz.step!=='move_drag')return;
+  const el=document.getElementById('wizMoveStatus');
+  if(el)el.innerHTML='<span style="color:#a8e6c0">✓ 移動を記録しました</span>';
+  const btn=document.getElementById('wizNextMove');if(btn)btn.disabled=false;
+}
+
+function wizFinishMove(){
+  // アクションリストに移動を追加済み（mouseup hook）
+  wiz.actionFlow.push({type:'move'});
+  renderWizFlow();renderActions();
+  wizGoToNextShot();
+}
+
+function wizSkipPlayer(){
+  wizGoToNextShot();
+}
+
+// ── 次のショットへ ──
+function wizGoToNextShot(){
+  wiz.step='shot';wiz.shotType=null;wiz.fromPlayer=null;
+  tool='select';shuttlePhase=null;selEl=null;
+  renderWizFlow();renderWizShot();
+  drawAll();update3D();
+}
+
 
 // ━━━━ Resize & Init ━━━━
 function resizeAll(){
