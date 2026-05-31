@@ -89,6 +89,21 @@ canvas.edit{display:block;cursor:crosshair}
 /* シャトル軌道モード表示 */
 .shuttle-mode{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);background:rgba(255,100,0,.85);color:#fff;font-size:9px;padding:2px 8px;border-radius:5px;z-index:5;pointer-events:none;white-space:nowrap;display:none}
 .shuttle-mode.show{display:block}
+/* アクションリスト */
+.aclist{display:flex;flex-direction:column;gap:2px;max-height:180px;overflow-y:auto}
+.aci{display:flex;align-items:center;gap:3px;padding:3px 5px;border-radius:4px;border:1px solid var(--border);background:var(--grl);font-size:10px;cursor:pointer}
+.aci:hover{background:var(--gl)}.aci.on{background:var(--bl);border-color:var(--blue)}
+.aci.playing{background:#fffbe6;border-color:#e0a010;animation:pulse .6s infinite alternate}
+@keyframes pulse{from{opacity:1}to{opacity:.6}}
+.aci-icon{font-size:11px;flex-shrink:0;width:16px;text-align:center}
+.aci-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aci-del{color:#c00;font-size:9px;padding:1px 4px;cursor:pointer;flex-shrink:0;border:none;background:transparent}
+.aci-del:hover{background:#fee;border-radius:3px}
+.seq-btns{display:flex;gap:2px;margin-top:3px}
+.sqb{flex:1;padding:3px;border-radius:4px;border:1px solid var(--border);background:var(--grl);font-size:10px;cursor:pointer;font-family:var(--font);color:#444}
+.sqb:hover{background:var(--gl);color:var(--green);border-color:var(--green)}
+.sqb.play{background:#1a7a4a;color:#fff;border-color:#1a7a4a}
+.sqb.play:hover{background:#155e38}
 /* 節点ハンドル表示用 */
 .node-hint{position:absolute;top:4px;right:6px;background:rgba(0,100,200,.8);color:#fff;font-size:8px;padding:2px 6px;border-radius:4px;z-index:5;pointer-events:none;display:none}
 .node-hint.show{display:block}
@@ -194,6 +209,18 @@ canvas.edit{display:block;cursor:crosshair}
     <div class="plbl">選択中の要素</div>
     <div id="prop"><div style="font-size:9px;color:#aaa">要素を選択してください<br><small>真上:X/Z ／ サイド:Y(高さ)</small></div></div>
   </div>
+  <div class="pan" style="flex:1">
+    <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">
+      <div class="plbl" style="margin:0">アクション</div>
+      <span id="seqStatus" style="font-size:9px;color:#888;margin-left:auto"></span>
+    </div>
+    <div class="aclist" id="aclist"></div>
+    <div class="seq-btns" style="margin-top:4px">
+      <button class="sqb play" onclick="playSequence()" id="seqPlayBtn">▶ 順番再生</button>
+      <button class="sqb" onclick="stopSequence()" title="停止">⏹</button>
+      <button class="sqb" onclick="clearActions()" title="全削除" style="flex:none;padding:3px 6px">🗑</button>
+    </div>
+  </div>
   <div class="pan">
     <div class="plbl">ステップ管理</div>
     <div class="slist" id="slist"></div>
@@ -282,7 +309,7 @@ window.PDEFS=PDEFS;
 // Data
 window._steps=[{label:'ステップ 1',
   players:[{id:'A',label:'A',color:'#1a7a4a',x:3.05,y:0,z:10.5},{id:'B',label:'B',color:'#1a4a8a',x:3.05,y:0,z:3.0}],
-  shuttles:[],moves:[],comments:[]}];
+  shuttles:[],moves:[],comments:[],actions:[]}];
 window._cs=0;
 const D=()=>window._steps[window._cs];
 
@@ -393,6 +420,12 @@ CT.onmousedown=e=>{
       }
       shuttlePhase='edit';
       selEl={type:'shuttle',idx:pendingShuttleIdx};
+      // アクションリストに追加
+      if(!D().actions)D().actions=[];
+      const _s=D().shuttles[pendingShuttleIdx];
+      D().actions.push({type:'shuttle',shuttleIdx:pendingShuttleIdx,
+        label:'シャトル '+(D().shuttles.length),color:_s?_s.color:'#ff4400'});
+      renderActions();
       showProp();updateShuttleHints();drawAll();update3D();
     }
     return;
@@ -550,6 +583,11 @@ CT.onmouseup=e=>{
         // 選手を終点に移動
         const pl=D().players[selEl.playerIdx];
         if(pl){pl.x=endPt.x;pl.z=endPt.z;}
+        // アクションリストに追加
+        if(!D().actions)D().actions=[];
+        D().actions.push({type:'move',moveIdx:D().moves.length-1,
+          label:(mv.playerId||'?')+' 移動',color:mv.color,playerId:mv.playerId});
+        renderActions();
       } else {
         // 移動距離なければ削除
         D().moves.splice(selEl.idx,1);
@@ -729,19 +767,19 @@ window.renderSteps=function(){
   window._steps.forEach((s,i)=>{const d=document.createElement('div');d.className='si'+(i===window._cs?' on':'');
     d.innerHTML=`<div class="sn">${i+1}</div><span>${s.label}</span>`;
     d.onclick=()=>{window._cs=i;window.renderSteps();drawAll();update3D();syncSl();};el.appendChild(d);});
-  syncSl();
+  syncSl();renderActions();
 };
 function syncSl(){const sl=document.getElementById('slider');sl.max=window._steps.length-1;sl.value=window._cs;document.getElementById('slbl').textContent=(window._cs+1)+' / '+window._steps.length;}
-function addStep(){const p=window._steps[window._cs];window._steps.push({label:'ステップ '+(window._steps.length+1),players:JSON.parse(JSON.stringify(p.players)),shuttles:[],moves:[],comments:[]});window._cs=window._steps.length-1;window.renderSteps();drawAll();update3D();}
-function dupStep(){const s=window._steps[window._cs];const c=JSON.parse(JSON.stringify(s));c.label=s.label+' (複製)';window._steps.splice(window._cs+1,0,c);window._cs++;window.renderSteps();drawAll();update3D();}
+function addStep(){const p=window._steps[window._cs];window._steps.push({label:'ステップ '+(window._steps.length+1),players:JSON.parse(JSON.stringify(p.players)),shuttles:[],moves:[],comments:[],actions:[]});window._cs=window._steps.length-1;window.renderSteps();renderActions();drawAll();update3D();}
+function dupStep(){const s=window._steps[window._cs];const c=JSON.parse(JSON.stringify(s));c.label=s.label+' (複製)';c.actions=[];window._steps.splice(window._cs+1,0,c);window._cs++;window.renderSteps();renderActions();drawAll();update3D();}
 function delStep(){if(window._steps.length<=1){window.notify('最低1ステップ必要です');return;}window._steps.splice(window._cs,1);if(window._cs>=window._steps.length)window._cs--;window.renderSteps();drawAll();update3D();}
-function goStep(i){window._cs=i;window.renderSteps();drawAll();update3D();updatePaLabel();updateSaLabel();}
+function goStep(i){window._cs=i;window.renderSteps();renderActions();drawAll();update3D();updatePaLabel();updateSaLabel();}
 window.goStep=goStep;
 function prevStep(){if(window._cs>0){window._cs--;window.renderSteps();drawAll();update3D();syncSl();}}
 function nextStep(){if(window._cs<window._steps.length-1){window._cs++;window.renderSteps();drawAll();update3D();syncSl();}}
 function togglePlay(){playing=!playing;const b=document.getElementById('pbtn');b.classList.toggle('pl',playing);b.textContent=playing?'⏸':'▶';if(playing){animT=setInterval(()=>{if(window._cs>=window._steps.length-1){playing=false;b.classList.remove('pl');b.textContent='▶';clearInterval(animT);return;}window._cs++;window.renderSteps();drawAll();update3D();syncSl();},1100);}else clearInterval(animT);}
 function saveDrill(){const name=document.getElementById('dn').value.trim()||'無題';const desc=document.getElementById('dd').value.trim();if(window._fbSave)window._fbSave({name,desc,match,type,cat,steps:JSON.parse(JSON.stringify(window._steps))});else window.notify('Firebase未接続');}
-function clearAll(){if(!confirm('クリアしますか？'))return;stopAllAnims();window._steps=[{label:'ステップ 1',players:[{id:'A',label:'A',color:'#1a7a4a',x:3.05,y:0,z:10.5},{id:'B',label:'B',color:'#1a4a8a',x:3.05,y:0,z:3.0}],shuttles:[],moves:[],comments:[]}];window._cs=0;selEl=null;shuttlePhase=null;pendingShuttleIdx=-1;window.renderSteps();drawAll();update3D();window.notify('クリアしました');}
+function clearAll(){if(!confirm('クリアしますか？'))return;stopAllAnims();stopSequence();window._steps=[{label:'ステップ 1',players:[{id:'A',label:'A',color:'#1a7a4a',x:3.05,y:0,z:10.5},{id:'B',label:'B',color:'#1a4a8a',x:3.05,y:0,z:3.0}],shuttles:[],moves:[],comments:[]}];window._cs=0;selEl=null;shuttlePhase=null;pendingShuttleIdx=-1;window.renderSteps();drawAll();update3D();window.notify('クリアしました');}
 window.addStep=addStep;window.dupStep=dupStep;window.delStep=delStep;
 window.prevStep=prevStep;window.nextStep=nextStep;window.togglePlay=togglePlay;
 window.saveDrill=saveDrill;window.clearAll=clearAll;
@@ -1114,18 +1152,20 @@ function buildCourt3D(){
   window._3D_OFF={x:OFF_X,zt:OFF_Z_T,zb:OFF_Z_B};
   const floorM=new THREE.MeshLambertMaterial({color:0xc89850});
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(CW+OFF_X*2+2,CL+OFF_Z_T+OFF_Z_B+2),floorM);
-  floor.rotation.x=-Math.PI/2;floor.position.set(CW/2,-0.01,(CL+OFF_Z_T-OFF_Z_B)/2+OFF_Z_B);floor.receiveShadow=true;scene.add(floor);
+  floor.rotation.x=-Math.PI/2;floor.position.set(CW/2,-0.05,(CL+OFF_Z_T-OFF_Z_B)/2+OFF_Z_B);floor.receiveShadow=true;scene.add(floor);
   const lm2=new THREE.LineBasicMaterial({color:0xb07830,transparent:true,opacity:0.3});
-  for(let i=0;i<32;i++){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-8,0,i-8),new THREE.Vector3(24,0,i-8)]);const l=new THREE.Line(g,lm2);l.position.y=0.001;scene.add(l);}
+  // 木目ラインは省略(Zファイティング防止)
   const court=new THREE.Mesh(new THREE.PlaneGeometry(CW,CL),new THREE.MeshLambertMaterial({color:0x2e7a2e}));
-  court.rotation.x=-Math.PI/2;court.position.set(CW/2,0,CL/2+OFF_Z_B);court.receiveShadow=true;scene.add(court);
+  court.rotation.x=-Math.PI/2;court.position.set(CW/2,0.01,CL/2+OFF_Z_B);court.receiveShadow=true;
+  court.material.polygonOffset=true;court.material.polygonOffsetFactor=-1;court.material.polygonOffsetUnits=-1;
+  scene.add(court);
   const wl=new THREE.LineBasicMaterial({color:0xffffff,linewidth:2});
-  function cl(pts){const g=new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(p[0],.005,p[1]+OFF_Z_B)));scene.add(new THREE.Line(g,wl));}
+  function cl(pts){const g=new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(p[0],.03,p[1]+OFF_Z_B)));scene.add(new THREE.Line(g,wl));}
   cl([[0,0],[CW,0],[CW,CL],[0,CL],[0,0]]);cl([[CW/2,0],[CW/2,CL]]);
   cl([[0,NET_Z],[CW,NET_Z]]);cl([[0,NET_Z-1.98],[CW,NET_Z-1.98]]);cl([[0,NET_Z+1.98],[CW,NET_Z+1.98]]);
   cl([[.46,0],[.46,CL]]);cl([[CW-.46,0],[CW-.46,CL]]);
   const dl=new THREE.LineDashedMaterial({color:0xffffff,dashSize:.25,gapSize:.18,transparent:true,opacity:.55});
-  function dcl(pts){const g=new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(p[0],.006,p[1]+OFF_Z_B)));const l=new THREE.Line(g,dl);l.computeLineDistances();scene.add(l);}
+  function dcl(pts){const g=new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(p[0],.031,p[1]+OFF_Z_B)));const l=new THREE.Line(g,dl);l.computeLineDistances();scene.add(l);}
   dcl([[0,.76],[CW,.76]]);dcl([[0,CL-.76],[CW,CL-.76]]);
   const postM=new THREE.MeshPhongMaterial({color:0x3366cc,shininess:50});
   [-0.45,CW+0.45].forEach(px=>{
@@ -1137,8 +1177,7 @@ function buildCourt3D(){
   for(let r=0;r<=10;r++){const gy=r*NET_HP/10;const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.45,gy,NET_Z+OFF_Z_B),new THREE.Vector3(CW+.45,gy,NET_Z+OFF_Z_B)]);scene.add(new THREE.Line(g,nl));}
   const tape=new THREE.Mesh(new THREE.BoxGeometry(CW+.9,.04,.015),new THREE.MeshLambertMaterial({color:0xffffff}));tape.position.set(CW/2,NET_HP-.02,NET_Z+OFF_Z_B);scene.add(tape);
   const walls=new THREE.Mesh(new THREE.BoxGeometry(36,13,36),new THREE.MeshLambertMaterial({color:0xd0b870,side:THREE.BackSide}));walls.position.set(CW/2,6.5,CL/2+OFF_Z_B);scene.add(walls);
-  const bulbM=new THREE.MeshBasicMaterial({color:0xfffcf0});
-  [1.5,5,8.5,11.8].forEach(z=>{const b=new THREE.Mesh(new THREE.SphereGeometry(.15,8,8),bulbM);b.position.set(CW/2,9,z+OFF_Z_B);scene.add(b);});
+  // 電球なし
 }
 
 function update3D(){
@@ -1281,6 +1320,162 @@ function playerAnimPrev(){const d=D();if(!d.moves.length)return;const was=player
 function playerAnimNext(){const d=D();if(!d.moves.length)return;const was=playerAnim.active;stopPlayerAnim();playerAnim.moveIdx=(playerAnim.moveIdx+1)%d.moves.length;if(was)startPlayerAnim(playerAnim.moveIdx);else updatePaLabel();}
 function updatePaLabel(){const d=D();const n=d.moves.length;const el=document.getElementById('paLabel');if(!el)return;if(!n){el.textContent='軌道なし';return;}const i=Math.max(0,Math.min(n-1,playerAnim.moveIdx<0?0:playerAnim.moveIdx));const mv=d.moves[i];el.textContent=(mv&&mv.playerId?mv.playerId:'?')+'軌道'+(i+1)+'/'+n+(playerAnim.active?' ▶':'');}
 function stopAllAnims(){stopShuttleAnim();stopPlayerAnim();}
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// アクションリスト & シーケンス再生
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let seqState={active:false,idx:0,rafId:null,phase:'idle'};
+
+function renderActions(){
+  const d=D();const acts=d.actions||[];
+  const el=document.getElementById('aclist');if(!el)return;
+  el.innerHTML='';
+  if(acts.length===0){
+    el.innerHTML='<div style="font-size:9px;color:#aaa;padding:3px">移動・シャトル軌道を追加すると<br>ここにリストアップされます</div>';
+    updateSeqStatus();return;
+  }
+  acts.forEach((a,i)=>{
+    const div=document.createElement('div');
+    const isOn=seqState.active&&seqState.idx===i;
+    div.className='aci'+(isOn?' playing':'');
+    const icon=a.type==='shuttle'?'🏸':'🏃';
+    const colDot=`<span style="width:8px;height:8px;border-radius:50%;background:${a.color};display:inline-block;flex-shrink:0"></span>`;
+    div.innerHTML=`<span class="aci-icon">${icon}</span>${colDot}<span class="aci-label">${a.label}</span><button class="aci-del" onclick="deleteAction(${i})" title="削除">✕</button>`;
+    div.onclick=e=>{if(e.target.classList.contains('aci-del'))return;selectAction(i);};
+    el.appendChild(div);
+  });
+  updateSeqStatus();
+}
+
+function updateSeqStatus(){
+  const d=D();const n=(d.actions||[]).length;
+  const el=document.getElementById('seqStatus');if(!el)return;
+  el.textContent=n>0?(seqState.active?`再生中 ${seqState.idx+1}/${n}`:`${n}件`):'';
+}
+
+function deleteAction(i){
+  const d=D();if(!d.actions)return;
+  d.actions.splice(i,1);renderActions();
+}
+
+function clearActions(){
+  if(!(D().actions||[]).length)return;
+  if(!confirm('アクションをすべて削除しますか？'))return;
+  D().actions=[];stopSequence();renderActions();
+}
+
+function selectAction(i){
+  // アクションをクリックしたら対応する軌道を選択状態に
+  const d=D();const a=(d.actions||[])[i];if(!a)return;
+  if(a.type==='shuttle'){
+    selEl={type:'shuttle',idx:a.shuttleIdx};
+    pendingShuttleIdx=a.shuttleIdx;shuttlePhase='edit';
+    showProp();drawAll();
+  } else if(a.type==='move'){
+    selEl=null;showProp();
+  }
+}
+
+// ── シーケンス再生 ──
+function playSequence(){
+  const d=D();const acts=d.actions||[];
+  if(acts.length===0){window.notify('アクションがありません');return;}
+  if(seqState.active){stopSequence();return;}
+  stopAllAnims();
+  seqState={active:true,idx:0,rafId:null,phase:'idle'};
+  document.getElementById('seqPlayBtn').textContent='⏸ 停止';
+  runNextAction();
+}
+
+function stopSequence(){
+  seqState.active=false;seqState.idx=0;seqState.phase='idle';
+  if(seqState.rafId)cancelAnimationFrame(seqState.rafId);seqState.rafId=null;
+  stopAllAnims();
+  const btn=document.getElementById('seqPlayBtn');if(btn)btn.textContent='▶ 順番再生';
+  renderActions();
+}
+
+function runNextAction(){
+  if(!seqState.active)return;
+  const d=D();const acts=d.actions||[];
+  if(seqState.idx>=acts.length){
+    // 全アクション完了
+    stopSequence();window.notify('シーケンス完了');return;
+  }
+  renderActions(); // ハイライト更新
+  const a=acts[seqState.idx];
+  if(a.type==='move'){
+    playMoveAction(a, ()=>{seqState.idx++;setTimeout(runNextAction,300);});
+  } else if(a.type==='shuttle'){
+    playShuttleAction(a, ()=>{seqState.idx++;setTimeout(runNextAction,300);});
+  } else {
+    seqState.idx++;runNextAction();
+  }
+}
+
+function playMoveAction(a, onDone){
+  const d=D();const mv=d.moves[a.moveIdx];
+  if(!mv||!mv.pts||mv.pts.length<2){onDone();return;}
+  const p=d.players.find(pl=>pl.id===a.playerId)||d.players[0];if(!p)return;
+  const key=(p.id||'x')+'_'+(p.color||'#fff');
+  if(!_playerAnimSprites[key]||!scene.children.includes(_playerAnimSprites[key])){
+    _playerAnimSprites[key]=buildPlayerAnimSprite(p);
+  }
+  Object.values(_playerAnimSprites).forEach(sp=>sp.visible=false);
+  _playerAnimSprites[key].visible=true;
+  // 元の選手スプライトを非表示
+  playerAnim={active:true,t:0,rafId:null,moveIdx:a.moveIdx,sprite:_playerAnimSprites[key],player:p};
+  const oz=(window._3D_OFF||{zb:2.39}).zb;
+  const pts3d=mv.pts.map(pt=>new THREE.Vector3(pt.x,pt.y,pt.z+oz));
+  const curve=new THREE.CatmullRomCurve3(pts3d);
+  function tick(){
+    if(!seqState.active){Object.values(_playerAnimSprites).forEach(sp=>sp.visible=false);return;}
+    playerAnim.t+=0.018;
+    if(playerAnim.t>=1){
+      playerAnim.t=1;
+      const pos=curve.getPoint(1);
+      playerAnim.sprite.position.set(pos.x,pos.y+0.8,pos.z);
+      // 選手の実際の位置を終点に移動
+      p.x=mv.pts[mv.pts.length-1].x;p.z=mv.pts[mv.pts.length-1].z;
+      playerAnim.active=false;
+      Object.values(_playerAnimSprites).forEach(sp=>sp.visible=false);
+      update3D();onDone();return;
+    }
+    const pos=curve.getPoint(playerAnim.t);
+    playerAnim.sprite.position.set(pos.x,pos.y+0.8,pos.z);
+    update3D();seqState.rafId=requestAnimationFrame(tick);
+  }
+  update3D();tick();
+}
+
+function playShuttleAction(a, onDone){
+  const d=D();const s=d.shuttles[a.shuttleIdx];
+  if(!s||!s.p1||!s.p3){onDone();return;}
+  if(!_shuttleMesh)buildShuttleMesh();
+  if(!_shuttleMesh){onDone();return;}
+  const oz=(window._3D_OFF||{zb:2.39}).zb;
+  const allPts=[s.p1,s.p2,s.p3].filter(Boolean).map(pt=>new THREE.Vector3(pt.x,pt.y,pt.z+oz));
+  if(allPts.length<2){onDone();return;}
+  const curve=new THREE.CatmullRomCurve3(allPts);
+  _shuttleMesh.visible=true;
+  let t=0;
+  function tick(){
+    if(!seqState.active){_shuttleMesh.visible=false;return;}
+    t+=0.02;
+    if(t>=1){
+      t=1;const pos=curve.getPoint(1);_shuttleMesh.position.copy(pos);
+      _shuttleMesh.visible=false;onDone();return;
+    }
+    const pos=curve.getPoint(t);_shuttleMesh.position.copy(pos);
+    const posNext=curve.getPoint(Math.min(t+0.025,1));
+    const ndc1=pos.clone().project(camera),ndc2=posNext.clone().project(camera);
+    const sdx=ndc2.x-ndc1.x,sdy=ndc2.y-ndc1.y;
+    if(Math.abs(sdx)>1e-4||Math.abs(sdy)>1e-4)_shuttleMesh.material.rotation=Math.atan2(sdy,sdx)+Math.PI/2;
+    seqState.rafId=requestAnimationFrame(tick);
+  }
+  tick();
+}
 
 // ━━━━ Resize & Init ━━━━
 function resizeAll(){
